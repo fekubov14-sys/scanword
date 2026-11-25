@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="tg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сканворд — Муаллим ва донишҷӯ</title>
+<style>
+:root{--bg:#f2f5fa;--panel:#fff;--ink:#17243a;--muted:#65748b;--line:#dce4ef;--blue:#245fe5;--pale:#e8f0ff;--green:#16834a;--red:#bd342b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+header{background:linear-gradient(120deg,#102a56,#2563eb);color:white;padding:20px max(14px,calc((100% - 1240px)/2))}
+header h1{margin:0;font-size:clamp(23px,4vw,34px)}header p{margin:5px 0 0;color:#dbeafe}
+main{max-width:1240px;margin:18px auto;padding:0 13px 35px}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.nav button{background:#e4ebf5;color:#21334e;padding:12px 18px}
+.nav button.active{background:var(--blue);color:#fff}
+.layout{display:grid;grid-template-columns:minmax(285px,370px) 1fr;gap:15px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 5px 18px #1d355710}
+h2{font-size:18px;margin:0 0 11px}h3{font-size:15px;margin:14px 0 7px}.hint{font-size:12px;color:var(--muted);margin:5px 0 10px}
+textarea,input,select{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;background:#fff;color:var(--ink);font:inherit}
+textarea{min-height:190px;resize:vertical;font:13px/1.55 ui-monospace,monospace}
+button{border:0;border-radius:9px;padding:9px 12px;background:var(--blue);color:white;font-weight:650;cursor:pointer}
+button.secondary{background:#eaf0f8;color:#23334c}button.danger{background:#fff0ef;color:#a52d24}
+button:disabled{opacity:.45;cursor:not-allowed}.actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.status{margin-top:10px;padding:10px;border-radius:9px;background:#f1f5f9;color:#334155;font-size:13px}
+hr{border:0;border-top:1px solid var(--line);margin:15px 0}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1;min-width:0}
+.boardHead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.boardWrap{overflow:auto;overscroll-behavior:contain;max-height:min(70vh,620px);border:1px solid var(--line);border-radius:11px;background:#edf2f8;padding:10px;min-height:190px;scrollbar-gutter:stable}
+.grid{display:grid;gap:2px;width:max-content;margin:auto}
+.cell{width:clamp(27px,3.7vw,39px);height:clamp(27px,3.7vw,39px);border:1px solid #b8c7da;background:#fff;border-radius:4px;padding:0;position:relative;text-align:center;color:#13233b;font-size:18px;font-weight:750;text-transform:uppercase}
+.cell.black{background:#26364d;border-color:#26364d}.cell.active{background:#dbeafe;border:2px solid var(--blue)}.cell.correct{background:#dcfce7}.cell.wrong{background:#fee2e2}
+.num{position:absolute;top:1px;left:3px;font-size:8px;color:#60738c;font-weight:500;line-height:1}
+.clues{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}
+.clueGroup{border:1px solid var(--line);border-radius:10px;padding:10px}.clueGroup h3{margin:0 0 6px}
+.clue{font-size:13px;padding:6px;border-radius:7px;cursor:pointer}.clue.selected{background:var(--pale);color:#1645a3;font-weight:650}.clue small{color:var(--muted);margin-right:5px}
+.stats{display:flex;gap:9px;flex-wrap:wrap;margin:9px 0;color:var(--muted);font-size:13px}.stats b{color:var(--ink)}
+#nativeLetterInput{position:fixed;left:0;top:0;width:2px;height:2px;padding:0;margin:0;border:0;opacity:.01;z-index:20;pointer-events:none;background:transparent;color:transparent;font-size:16px}
+.keyboard{display:grid;grid-template-columns:repeat(9,minmax(23px,1fr));gap:4px;margin-top:8px}
+.keyboard button{padding:7px 1px;background:#e8eef8;color:#1c2c45;border:1px solid #d3deec}.keyboard button.erase{background:#fff0ef;color:#a52d24}
+.timer{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:#1749b2}
+.result{border:1px solid var(--line);border-radius:10px;padding:9px;margin-top:8px;font-size:13px}.scoreBox{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}.scoreItem{padding:10px;border-radius:9px;background:#f1f5f9}.scoreItem b{display:block;font-size:23px}.scoreItem.good{background:#dcfce7;color:#166534}.scoreItem.bad{background:#fee2e2;color:#991b1b}.scoreItem.neutral{background:#e8f0ff;color:#1e40af}
+.award{margin:14px 0 10px;padding:14px 10px;border:2px solid #d7a928;border-radius:14px;background:linear-gradient(135deg,#fff8d9,#fff);text-align:center;color:#73520a}.award .cup{font-size:54px;line-height:1.15;display:block}.award strong{display:block;font-size:18px;margin-top:5px}.award.silver{border-color:#9aa7b5;background:linear-gradient(135deg,#f1f4f7,#fff);color:#4b5563}.award.silver .cup{filter:grayscale(1) brightness(1.35)}.award.bronze{border-color:#bd8250;background:linear-gradient(135deg,#fff0e3,#fff);color:#875027}.award.bronze .cup{filter:sepia(1) saturate(2.2) hue-rotate(345deg) brightness(.88)}.award.encourage{border-color:#9bb6df;background:linear-gradient(135deg,#edf5ff,#fff);color:#24518a}
+.empty{color:var(--muted);text-align:center;padding:45px 12px}.wrongQuestions{margin-top:12px;padding:11px;border:1px solid #f2b8b5;border-radius:10px;background:#fff7f6}.wrongQuestions ol{padding-left:22px;margin:8px 0}.wrongQuestions li{margin:9px 0;padding-bottom:8px;border-bottom:1px solid #f3d4d1}.wrongGiven{color:#a52d24}.rightAnswer{color:#16834a}
+.imageFields{display:grid;gap:8px;margin-top:10px}
+.imageField{border:1px solid var(--line);border-radius:10px;padding:9px;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+.imageField img,.clueImage{max-width:100%;height:auto;max-height:170px;object-fit:contain;border-radius:8px;border:1px solid var(--line);background:#f8fafc}
+.imageField img{grid-column:1/-1;max-width:180px}
+.clueImage{display:block;margin:6px 0 2px;max-width:min(100%,260px)}
+.clueText{display:block}
+/* Расмҳо қисми худи варақаи сканворд мебошанд */
+.imageSheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:10px 0 13px;padding:10px;border:1px solid var(--line);border-radius:11px;background:#f8fafc}
+.imageSheet:empty{display:none}
+.imageCard{border:1px solid #cbd5e1;border-radius:9px;background:#fff;padding:8px;break-inside:avoid;page-break-inside:avoid}
+.imageCard img{display:block;width:100%;height:125px;object-fit:contain;background:#fff;border-radius:6px}
+.imageCard .imageQuestion{font-size:12px;margin-top:6px;line-height:1.35}
+.imageCard .imageNumber{font-weight:800;color:#1749b2;margin-right:4px}
+.hidden{display:none!important}
+@media(max-width:820px){.layout{grid-template-columns:1fr}.clues{grid-template-columns:1fr}.panel{padding:13px}}
+@media print{header,.nav,.no-print,#teacherSide{display:none!important}main,.layout{display:block;margin:0;padding:0}.panel{border:0;box-shadow:none}.boardWrap{border:0;background:white;overflow:visible}.imageSheet{background:#fff;border:1px solid #999;grid-template-columns:repeat(3,1fr)}.imageCard{border:1px solid #aaa}.imageCard img{height:105px;max-width:100%}.clueGroup{break-inside:avoid;page-break-inside:avoid}}
+
+/* Modern visual theme: decorative background only; application logic is unchanged */
+:root{--bg:#eaf1fb;--panel:rgba(255,255,255,.94);--ink:#17243a;--muted:#64748b;--line:#d9e4f2;--blue:#315fe8;--pale:#eaf0ff;--green:#16834a;--red:#bd342b;--head1:#10264d;--head2:#6854c8;--boardbg:#e8eef8;--blackcell:#263b5b}
+html{min-height:100%;background:#eaf1fb}
+body{min-height:100vh;background:radial-gradient(ellipse at 8% 8%,rgba(112,160,255,.16),transparent 34%),radial-gradient(ellipse at 92% 20%,rgba(176,139,255,.13),transparent 32%),linear-gradient(135deg,var(--bg),var(--bg));background-attachment:fixed}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.28;background-image:radial-gradient(rgba(75,105,160,.22) .8px,transparent .8px);background-size:22px 22px}
+header{position:relative;overflow:hidden;background:linear-gradient(118deg,var(--head1) 0%,#244eaa 52%,var(--head2) 100%);padding-top:25px;padding-bottom:25px;box-shadow:0 10px 30px rgba(26,53,105,.2)}
+header:after{content:"";position:absolute;width:330px;height:330px;border:1px solid rgba(255,255,255,.13);border-radius:50%;right:-85px;top:-205px;box-shadow:0 0 0 28px rgba(255,255,255,.035),0 0 0 58px rgba(255,255,255,.025)}
+header h1,header p{position:relative;z-index:1}
+main{margin-top:22px}
+.panel{background:var(--panel);border:1px solid rgba(255,255,255,.9);border-radius:19px;padding:17px;box-shadow:0 10px 28px rgba(38,66,112,.09),0 2px 7px rgba(38,66,112,.04);backdrop-filter:blur(8px)}
+.nav button{border:1px solid #d8e2f2;box-shadow:0 2px 5px rgba(35,62,105,.05);transition:transform .16s ease,box-shadow .16s ease,background .16s ease}
+.nav button:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(35,62,105,.12)}
+.nav button.active{background:linear-gradient(115deg,#2859dc,#536de9);box-shadow:0 5px 13px rgba(49,95,232,.22)}
+button{transition:filter .15s ease,transform .15s ease,box-shadow .15s ease}
+button:hover{filter:brightness(1.035);box-shadow:0 4px 10px rgba(37,76,160,.13)}
+button:active{transform:translateY(1px)}
+.boardWrap{background:var(--boardbg);border:1px solid #d5e0ef;border-radius:14px;box-shadow:inset 0 1px 3px rgba(40,65,105,.04)}
+.cell{box-shadow:0 1px 2px rgba(28,45,75,.06)}
+.cell.black{background-color:var(--blackcell);border-color:var(--blackcell);background-image:var(--blackcell-image,none);background-size:cover;background-position:center}
+.cell.clueCell{width:clamp(27px,3.7vw,39px);height:clamp(27px,3.7vw,39px);min-width:clamp(27px,3.7vw,39px);min-height:clamp(27px,3.7vw,39px);box-sizing:border-box;padding:2px;white-space:normal;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;color:var(--clue-text,#fff);font-size:var(--clue-size,6px);line-height:1.05;font-weight:650;text-transform:none;text-align:center}
+.cell.clueCell .clueCellNum{font-size:calc(var(--clue-size,6px) + 1px);font-weight:850;flex:none;line-height:1}
+.cell.clueCell .clueCellText{display:block;flex:1;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;white-space:normal;scrollbar-width:thin}
+.cell.active{background:#dce9ff;box-shadow:0 0 0 2px rgba(49,95,232,.12)}
+.clueGroup,.result,.imageField{background:rgba(255,255,255,.72);border-color:#dce5f1;border-radius:12px}
+textarea,input,select{border-color:#d5e0ee;box-shadow:inset 0 1px 2px rgba(35,55,90,.035)}
+textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);border-color:#6e91f2}
+.keyboard button{border-radius:9px;background:linear-gradient(180deg,#f4f7fd,#e5edf9);border-color:#d6e0ef}
+.status{background:linear-gradient(110deg,#eff5ff,#f4f1ff);border:1px solid #e0e8f7}
+@media(max-width:820px){main{margin-top:14px}.panel{border-radius:16px}}
+@media(prefers-reduced-motion:reduce){button,.nav button{transition:none}}
+@media print{body{background:#fff}body:before{display:none}header{box-shadow:none}.panel{background:#fff;backdrop-filter:none}}
+
+
+/* Танзимоти шахсии намуди барнома */
+#designScreen{max-width:850px;margin:0 auto}
+.designGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:13px;margin-top:14px}
+.designControl{padding:12px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.72)}
+.designControl label{display:block;font-weight:650;margin-bottom:7px}
+.designControl input[type=color]{height:44px;padding:4px;cursor:pointer}
+.designPresets{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.designPresets button{min-width:105px}
+.designPreview{margin-top:15px;padding:14px;border-radius:14px;background:var(--panel);border:1px solid var(--line)}
+.designPreview .previewHeader{padding:13px;border-radius:10px;color:white;background:linear-gradient(110deg,var(--head1),var(--head2));font-weight:750}
+.designPreview .previewCells{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap}
+.designPreview .previewCells span{width:27px;height:27px;border-radius:5px;background:#fff;border:1px solid #b8c7da}
+.designPreview .previewCells span.dark{background:var(--blackcell);border-color:var(--blackcell)}
+
+
+/* Савол дар ҳуҷайраи росттари оғози ҷавоб ҷой мегирад, вале андозаи шабака тағйир намеёбад */
+.cell.clueCell{width:clamp(27px,3.7vw,39px);height:clamp(27px,3.7vw,39px);min-width:clamp(27px,3.7vw,39px);min-height:clamp(27px,3.7vw,39px);max-width:clamp(27px,3.7vw,39px);max-height:clamp(27px,3.7vw,39px);box-sizing:border-box;padding:2px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1px;overflow:hidden;white-space:normal;line-height:1.05;font-size:var(--clue-size,6px);color:var(--clue-text,#fff);text-align:center}
+.cell.clueCell .clueCellNum{font-size:calc(var(--clue-size,6px) + 1px);font-weight:850;line-height:1;flex:none}
+.cell.clueCell .clueCellText{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;overflow-wrap:anywhere;word-break:break-word;width:100%;font-size:var(--clue-size,6px);line-height:1.05}
+.clueSideBadge{position:absolute;right:-3px;top:1px;z-index:4;min-width:13px;height:13px;padding:0 2px;border-radius:4px;background:var(--blackcell);color:var(--clue-text,#fff);font-size:8px;line-height:13px;text-align:center;box-shadow:0 0 0 1px #fff;cursor:pointer}
+.fullClueModal{display:none;position:fixed;inset:0;z-index:9999;background:rgba(10,20,35,.65);padding:18px;align-items:center;justify-content:center}
+.fullClueModal.show{display:flex}.fullClueBox{width:min(560px,100%);max-height:80vh;overflow:auto;background:#fff;color:#17243a;border-radius:16px;padding:18px;box-shadow:0 18px 60px #0005}
+.fullClueHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.fullClueHead button{min-width:38px;padding:7px 10px}.fullClueImage{display:block;max-width:100%;max-height:48vh;object-fit:contain;margin:0 auto 14px;border-radius:10px;background:#f4f7fb}.fullClueImage.hidden{display:none}.fullClueText{font-size:18px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+
+</style>
+</head>
+<body>
+<header><h1>🧩 Сканворд</h1><p>Панели алоҳида барои муаллим ва донишҷӯ · офлайн</p></header>
+<main>
+<nav class="nav no-print">
+<button id="teacherTab" class="active">👩‍🏫 Панели муаллим</button>
+<button id="studentTab">🎓 Панели донишҷӯ</button>
+<button id="designTab">🎨 Танзимоти дизайн</button>
+</nav>
+
+<section id="teacherScreen" class="layout hidden">
+<aside class="panel" id="teacherSide">
+<h2>Сохтани сканворд</h2>
+<p class="hint">Ҳар сатр: ҶАВОБ | Савол (ҷудокунакро бо фосилаҳои ду тараф нависед). Дар ҷавоб ҳарф, рақам ва аломатҳои махсус (масалан: 12В, 220/380В, AC-DC, +, −, %, Ω) истифода бурдан мумкин аст. Фосилаҳо ба ҳисоб гирифта намешаванд. Аломати | низ дар дохили ҷавоб ё савол истифода мешавад, агар ҷудокунаки байни онҳо шакли « | » дошта бошад.</p>
+<textarea id="wordInput" spellcheck="false">БАРҚ | Шакли энергия, ки дар шабака истифода мешавад
+ҶАРАЁН | Ҳаракати зарядҳои электрикӣ
+ШИДДАТ | Фарқи потенсиалҳои электрикӣ
+ҚУВВА | Андозаи таъсири ҷисм ба ҷисм
+МУҚОВИМАТ | Хосияти ноқил барои маҳдуд кардани ҷараён
+ГЕНЕРАТОР | Таҷҳизоте, ки энергияи механикиро ба электрикӣ табдил медиҳад
+ТРАНСФОРМАТОР | Таҷҳизот барои тағйир додани шиддати тағйирёбанда
+АККУМУЛЯТОР | Манбаи ҷараёни химиявии такроран пуршаванда
+ҚУДРАТ | Кори иҷрошуда дар воҳиди вақт</textarea>
+<div class="actions"><button class="secondary" id="buildImageFields" type="button">Иловаи расм ба саволҳо</button></div>
+<div class="hint">Барои ҳар калима метавонед акси таҷҳизот, схема ё асбобро интихоб кунед. Расм дар файли супориши донишҷӯ низ дохил мешавад.</div>
+<div id="imageFields" class="imageFields"></div><p class="hint">Пас аз интихоби расм, ҳатман «Сохтани сканворд»-ро пахш кунед. Расм дар назди савол нишон дода мешавад.</p>
+<div class="actions"><button id="generate">Сохтани сканворд</button><button class="secondary" id="sample">Намуна</button><button class="secondary" id="clearInput">Пок кардан</button></div>
+<div class="status" id="buildStatus">Калимаҳоро ворид карда, сканворд созед.</div>
+<hr>
+<h2>Танзимоти санҷиш</h2>
+<label class="hint" for="timeLimit">Маҳдудияти вақт (дақиқа; 0 — бе маҳдудият)</label>
+<input id="timeLimit" type="number" min="0" max="180" value="10">
+<div class="actions"><button class="secondary" id="saveStudentFile">Сохтани файли донишҷӯ</button><button class="secondary" id="saveTeacherProject">Сабти файли кории муаллим</button><button class="secondary" id="saveTeacherKey">Сабти калиди ҷавобҳо</button><button class="secondary" id="loadFile">Кушодан / таҳрири файли пешина</button><input id="fileInput" type="file" accept=".json,.html,.htm,application/json,text/html" hidden></div>
+<p class="hint">Барои идомаи кори пешина, файли супориши донишҷӯ (.json) ё файли кории муаллимро кушоед. Саволҳо ба майдони таҳрир бармегарданд; онҳоро илова, иваз ё нест карда, сканвордро аз нав созед. Барои нигоҳ доштани нусхаи таҳриршаванда «Сабти файли кории муаллим»-ро пахш кунед.</p>
+<hr>
+<h2>Калиди ҷавобҳо — танҳо муаллим</h2>
+<div id="answerKey" class="status">Пас аз сохтани сканворд калимаҳо дар ин ҷо намоиш дода мешаванд.</div>
+<hr>
+<h2>Натиҷаҳои донишҷӯён</h2>
+<div class="actions"><button class="secondary" id="exportResults">Содироти CSV</button><button class="danger" id="clearResults">Пок кардани натиҷаҳо</button></div>
+<div id="resultsList" class="hint">Ҳоло натиҷа сабт нашудааст.</div>
+<hr>
+<h2>📱 QR-код барои донишҷӯён</h2>
+<p class="hint">Пайванди интернетии барномаро ворид кунед. Донишҷӯён QR-кодро скан карда, бевосита ба панели донишҷӯ медароянд.</p>
+<label class="hint" for="studentAppUrl">Пайванди барнома (URL)</label>
+<input id="studentAppUrl" type="url" placeholder="https://username.github.io/skanvord/">
+<div class="actions">
+<button type="button" id="makeStudentQr">Сохтани QR-код</button>
+<button type="button" class="secondary" id="copyStudentUrl">Нусхабардории пайванд</button>
+<button type="button" class="secondary" id="openStudentQr" disabled>Кушодани QR-код</button>
+</div>
+<div id="studentQrArea" class="status" style="text-align:center">
+<p>Пас аз ворид кардани пайванди дастрас аз интернет, тугмаи «Сохтани QR-код»-ро пахш кунед.</p>
+</div>
+<p class="hint">Муҳим: QR-код худи файлро ба телефон намефиристад. Аввал файли HTML-ро дар хостинг (масалан GitHub Pages) ҷойгир кунед. Ҳамаи донишҷӯён бояд аз пайванди ягона истифода баранд. Барои сохтани QR интернет лозим аст.</p>
+</aside>
+<section class="panel">
+<div class="boardHead"><h2>Пешнамоиши муаллим</h2><span class="hint" id="teacherDimensions"></span></div>
+<div class="imageSheet" id="teacherImageSheet"></div>
+<div class="boardWrap" id="teacherBoard"><div class="empty">Аввал сканворд созед.</div></div>
+<div class="actions no-print"><button class="secondary" id="teacherPrint">Чопи пешнамоиш</button></div>
+<div class="clues" id="teacherClues"></div>
+</section>
+</section>
+
+<section id="studentScreen" class="layout">
+<aside class="panel">
+<h2>Панели донишҷӯ</h2>
+<label class="hint" for="studentName">Ному насаб</label><input id="studentName" placeholder="Масалан: Аҳмадов Али">
+<div class="actions"><button class="secondary" id="openStudentFile">Кушодани супориш</button><input id="studentFileInput" type="file" accept=".json,application/json" hidden></div>
+<div class="status" id="studentStatus">Муаллим бояд файли супоришро диҳад. Дар ин панел ҷавобҳои дуруст нишон дода намешаванд.</div>
+<hr>
+<div class="row"><div><span class="hint">Вақти боқимонда</span><div class="timer" id="timer">10:00</div></div><div><span class="hint">Пешрафт</span><div class="timer" id="progress">0%</div></div></div>
+<div class="actions"><button id="startTest">Оғози санҷиш</button><button class="secondary" id="finishTest">Анҷом ва гирифтани натиҷа</button></div>
+<div class="status" id="studentFeedback">Аввал файлро кушоед ва ному насабро ворид кунед.</div>
+<hr>
+<input id="nativeLetterInput" type="text" inputmode="text" enterkeyhint="done"
+               autocomplete="off" autocapitalize="characters" spellcheck="false"
+               maxlength="2" aria-label="Ворид кардани ҳарф, рақам ё аломат ба ҳуҷайраи интихобшуда">
+<div class="actions"><button class="secondary" id="studentExport">Сабти ҷавобҳои ман</button><button class="secondary" id="studentPrint">Чопи супориш</button></div>
+</aside>
+<section class="panel">
+<div class="boardHead"><h2>Супориши сканворд</h2><span class="hint" id="studentDimensions"></span></div>
+<div class="imageSheet" id="studentImageSheet"></div>
+<div class="boardWrap" id="studentBoard"><div class="empty">Файли супоришро кушоед.</div></div>
+<div class="stats"><span>Пуршуда: <b id="filled">0</b></span><span>Ҳамагӣ: <b id="total">0</b></span></div>
+<div class="clues" id="studentClues"></div>
+</section>
+</section>
+
+<section id="designScreen" class="panel hidden">
+<h2>🎨 Танзимоти дизайн</h2>
+<p class="hint">Намуди барномаро худатон интихоб кунед. Тағйирот фавран татбиқ мешавад ва дар ҳамин телефон ё компютер нигоҳ дошта мешавад.</p>
+<div class="designPresets">
+<button type="button" class="secondary" data-preset="blue">Кабуди ором</button>
+<button type="button" class="secondary" data-preset="purple">Бунафши муосир</button>
+<button type="button" class="secondary" data-preset="green">Сабзи нарм</button>
+<button type="button" class="secondary" data-preset="dark">Торик</button>
+</div>
+<div class="designControl" style="margin-top:12px">
+<label for="designBgFile">Гузоштани расм аз файли телефон ҳамчун фон</label>
+<input id="designBgFile" type="file" accept="image/*">
+<div class="actions"><button type="button" class="secondary" id="removeBgImage">Пок кардани расми фон</button></div>
+<p class="hint" id="bgImageStatus">Метавонед JPG, PNG ё GIF интихоб кунед. GIF-и аниматсионӣ бо ҳаракаташ нигоҳ дошта мешавад.</p>
+</div>
+<div class="designControl" style="margin-top:10px"><strong>Расм барои қисмҳои дигари барнома</strong><p class="hint">Барои ҳар қисм JPG, PNG ё GIF интихоб кунед. GIF-и аниматсионӣ ҳаракаташро нигоҳ медорад.</p>
+<label for="headerImageFile">Фони сарлавҳаи болоӣ</label><input id="headerImageFile" type="file" accept="image/*"><div class="actions"><button type="button" class="secondary" id="removeHeaderImage">Пок кардани расми сарлавҳа</button></div>
+<label for="panelImageFile">Фони панелҳо ва қисмҳои корӣ</label><input id="panelImageFile" type="file" accept="image/*"><div class="actions"><button type="button" class="secondary" id="removePanelImage">Пок кардани расми панелҳо</button></div>
+<label for="boardImageFile">Фони майдони сканворд</label><input id="boardImageFile" type="file" accept="image/*"><div class="actions"><button type="button" class="secondary" id="removeBoardImage">Пок кардани расми сканворд</button></div><p class="hint" id="sectionImageStatus">Расмҳоро интихоб кунед ва «Сабти дизайн»-ро пахш намоед.</p></div>
+<div class="designGrid">
+<div class="designControl"><label for="designBg">Ранги умумии фон</label><input id="designBg" type="color" value="#eaf1fb"></div>
+<div class="designControl"><label for="designPanel">Ранги кортҳо ва панелҳо</label><input id="designPanel" type="color" value="#ffffff"></div>
+<div class="designControl"><label for="designHead1">Ранги аввали сарлавҳа</label><input id="designHead1" type="color" value="#10264d"></div>
+<div class="designControl"><label for="designHead2">Ранги дуюми сарлавҳа</label><input id="designHead2" type="color" value="#6854c8"></div>
+<div class="designControl"><label for="designBoard">Ранги заминаи сканворд</label><input id="designBoard" type="color" value="#e8eef8"></div>
+<div class="designControl"><label for="designBlack">Ранги ҳуҷайраҳои баста</label><input id="designBlack" type="color" value="#263b5b"><label for="blackCellImageFile" style="margin-top:9px">Расм барои ҳуҷайраҳои баста</label><input id="blackCellImageFile" type="file" accept="image/*"><div class="actions"><button type="button" class="secondary" id="removeBlackCellImage">Пок кардани расм</button></div><p class="hint">Ин расм ба ҳамаи ҳуҷайраҳои баста гузошта мешавад ва ба файли донишҷӯ низ мегузарад.</p></div>
+<div class="designControl"><label for="designAccent">Ранги тугмаҳо ва интихоб</label><input id="designAccent" type="color" value="#315fe8"></div>
+</div>
+<div class="designControl" style="margin-top:12px"><strong>Ҷойгиршавии саволҳо</strong>
+<label for="questionDisplay" style="margin-top:8px">Тарзи нишон додани саволҳо</label>
+<select id="questionDisplay"><option value="below">Дар поёни сканворд (мисли пештара)</option><option value="inside">Дар дохили ҳуҷайраҳои баста (сиёҳ)</option></select>
+<div class="row" style="margin-top:8px"><div><label for="clueFontSize">Андозаи ҳарфи савол</label><select id="clueFontSize"><option value="5">Хурд</option><option value="6" selected>Миёна</option><option value="7">Калон</option><option value="8">Хеле калон</option></select></div><div><label for="clueTextColor">Ранги матни савол</label><input id="clueTextColor" type="color" value="#ffffff"></div></div>
+<p class="hint">Савол дар ҳуҷайраи баста пеш аз оғози ҷавоб ҷой мегирад: барои ҷавоби уфуқӣ аз чап ва барои ҷавоби амудӣ аз боло. Барои хондани матни пурра ба ҳуҷайраи савол зер кунед.</p>
+</div>
+<div class="designPreview"><div class="previewHeader">Пешнамоиши сарлавҳаи барнома</div><div class="previewCells"><span></span><span></span><span class="dark"></span><span></span><span class="dark"></span><span></span></div><p class="hint">Намунаи намуди ҳуҷайраҳои сканворд</p></div>
+<div class="actions"><button type="button" id="saveDesign">Сабти дизайн</button><button type="button" class="secondary" id="resetDesign">Барқарор кардани дизайн</button><button type="button" class="secondary" id="backFromDesign">↩ Бозгашт ба барнома</button></div>
+<div class="status" id="designStatus">Рангҳоро интихоб кунед — тағйиротро фавран мебинед.</div>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id), alphabet=[...'АБВГҒДЕЁЖЗӢИЙКҚЛМНОПРСТУӮФХҲЧҶШЪЭЮЯ'];
+const nativeLetterInput=$('nativeLetterInput');
+function focusNativeLetterInput(){if(!started||finished||!selected)return;const cell=document.querySelector('#studentBoard .cell.active');if(cell){const r=cell.getBoundingClientRect();nativeLetterInput.style.left=Math.round(r.left)+'px';nativeLetterInput.style.top=Math.round(r.top)+'px';nativeLetterInput.style.width=Math.max(2,Math.round(r.width))+'px';nativeLetterInput.style.height=Math.max(2,Math.round(r.height))+'px';}if(document.activeElement===nativeLetterInput)nativeLetterInput.blur();try{nativeLetterInput.focus({preventScroll:true})}catch(e){nativeLetterInput.focus()}}
+let entryImages={},entries=[],cells={},placements=[],selected=null,direction='across',numbers={},checked=false,started=false,finished=false,timerId=null,secondsLeft=600,limitMinutes=10;
+// Ҳарфҳо, рақамҳо ва аломатҳои махсус нигоҳ дошта мешаванд; танҳо фосилаҳо хориҷ мешаванд.
+const clean=s=>String(s??'').toLocaleUpperCase('tg').replace(/\s+/gu,'');
+const normalizeQuestionText=s=>String(s||'').replace(/\\r?\\n/g,'\n').replace(/\r\n?/g,'\n');
+const key=(r,c)=>r+','+c, get=(r,c)=>cells[key(r,c)];
+// Ҷудокунии ҷавоб аз савол танҳо аз рӯи аломати ҷудокунандаи " | " анҷом мешавад.
+// Аз ин рӯ аломати | метавонад дар дохили худи ҷавоб ё савол низ истифода шавад.
+function splitEntryLine(line){
+ const text=String(line??'');
+ const spaced=text.match(/\s\|\s/);
+ if(spaced){const i=spaced.index;return [text.slice(0,i),text.slice(i+spaced[0].length)];}
+ const i=text.indexOf('|');
+ return i>=0?[text.slice(0,i),text.slice(i+1)]:[text,''];
+}
+function parse(){return $('wordInput').value.split(/\n/).map((x,index)=>({line:x.trim(),index})).filter(x=>x.line).map(({line,index})=>{let [answer,clue]=splitEntryLine(line);return{word:clean(answer),clue:clue.trim()||'Шарҳи калима ворид нашудааст',image:entryImages[index]||''}}).filter(x=>x.word.length>=2)}
+function renderImageFields(){
+ const host=$('imageFields');host.innerHTML='';
+ const lines=$('wordInput').value.split(/\n/).map((x,i)=>({line:x.trim(),index:i})).filter(x=>x.line);
+ lines.forEach(({line,index})=>{
+  const parts=splitEntryLine(line),word=clean(parts[0]||'');if(word.length<2)return;
+  const wrap=document.createElement('div');wrap.className='imageField';
+  const label=document.createElement('label');label.textContent=word+' — '+(String(parts[1]||'').trim()||'Савол');
+  const input=document.createElement('input');input.type='file';input.accept='image/*';input.setAttribute('aria-label','Расм барои '+word);
+  const preview=document.createElement('img');preview.alt='Расми '+word;preview.className='hidden';
+  if(entryImages[index]){preview.src=entryImages[index];preview.classList.remove('hidden')}
+  input.onchange=()=>{const file=input.files&&input.files[0];if(!file)return;if(!file.type.startsWith('image/')){alert('Лутфан файли расм интихоб кунед.');return}
+   const reader=new FileReader();reader.onload=()=>{entryImages[index]=reader.result;preview.src=reader.result;preview.classList.remove('hidden')};reader.readAsDataURL(file)};
+  const remove=document.createElement('button');remove.type='button';remove.className='secondary';remove.textContent='Пок кардани расм';remove.onclick=()=>{delete entryImages[index];preview.removeAttribute('src');preview.classList.add('hidden');input.value=''};
+  wrap.append(label,input,remove,preview);host.append(wrap);
+ });
+ if(!lines.length)host.textContent='Аввал калима ва саволҳоро ворид кунед.';
+}
+function canPlace(w,r,c,dir){let dr=dir==='down'?1:0,dc=dir==='across'?1:0;if(get(r-dr,c-dc)||get(r+dr*w.length,c+dc*w.length))return false;let cross=0;for(let i=0;i<w.length;i++){let rr=r+dr*i,cc=c+dc*i,o=get(rr,cc);if(o&&o.ch!==w[i])return false;if(o)cross++;else if((dir==='across'&&(get(rr-1,cc)||get(rr+1,cc)))||(dir==='down'&&(get(rr,cc-1)||get(rr,cc+1))))return false}return cross>0}
+function put(w,r,c,dir,idx){let dr=dir==='down'?1:0,dc=dir==='across'?1:0;for(let i=0;i<w.length;i++){let rr=r+dr*i,cc=c+dc*i,k=key(rr,cc);if(!cells[k])cells[k]={ch:w[i],value:'',words:[]};cells[k].words.push(idx)}placements.push({idx,r,c,dir})}
+function makePuzzle(data){
+ entries=data.entries.map(x=>({word:clean(x.word),clue:x.clue,image:x.image||''}));cells={};placements=[];numbers={};
+ const sorted=entries.map((x,i)=>({...x,orig:i})).filter(x=>x.word.length>=2).sort((a,b)=>b.word.length-a.word.length);
+ if(!sorted.length)throw Error('Рӯйхати калимаҳо холӣ аст');
+
+ // Ҷойгиркунии пешина танҳо як роҳи тасодуфиро месанҷид.
+ // Ҳоло чандин тартиб ва мавқеъ санҷида шуда, беҳтарин натиҷа нигоҳ дошта мешавад.
+ let best={cells:{},placements:[],failed:sorted.map(x=>x.word)};
+ const attempts=Math.min(400,Math.max(80,sorted.length*40));
+ for(let attempt=0;attempt<attempts;attempt++){
+  cells={};placements=[];
+  const seed=sorted[0];
+  put(seed.word,0,0,'across',seed.orig);
+  const rest=sorted.slice(1);
+  // Дар ҳар кӯшиш тартиби калимаҳои боқимонда тағйир меёбад,
+  // аммо калимаҳои дарозтар одатан пештар санҷида мешаванд.
+  rest.sort((a,b)=>{
+   const delta=b.word.length-a.word.length;
+   return delta===0?Math.random()-.5:delta;
+  });
+  for(const item of rest){
+   const w=item.word,opts=[];
+   for(const k in cells){
+    const [r,c]=k.split(',').map(Number);
+    for(let i=0;i<w.length;i++){
+     if(w[i]!==get(r,c).ch)continue;
+     for(const dir of ['across','down']){
+      const rr=r-(dir==='down'?i:0),cc=c-(dir==='across'?i:0);
+      if(canPlace(w,rr,cc,dir))opts.push({r:rr,c:cc,dir});
+     }
+    }
+   }
+   if(opts.length){
+    const pick=opts[Math.floor(Math.random()*opts.length)];
+    put(w,pick.r,pick.c,pick.dir,item.orig);
+   }
+  }
+  if(placements.length>best.placements.length){
+   best={cells:JSON.parse(JSON.stringify(cells)),placements:placements.map(x=>({...x}))};
+   if(best.placements.length===sorted.length)break;
+  }
+ }
+ cells=best.cells;placements=best.placements;
+ const placed=new Set(placements.map(p=>p.idx));
+ const failed=entries.filter((e,i)=>!placed.has(i)).map(e=>e.word);
+ let coords=Object.keys(cells).map(k=>k.split(',').map(Number)),minR=Math.min(...coords.map(x=>x[0])),minC=Math.min(...coords.map(x=>x[1])),shifted={};
+ for(let k in cells){let[r,c]=k.split(',').map(Number);shifted[key(r-minR,c-minC)]=cells[k]}
+ placements=placements.map(p=>({...p,r:p.r-minR,c:p.c-minC}));cells=shifted;
+ placements.sort((a,b)=>a.r-b.r||a.c-b.c);let n=0;for(let p of placements){let k=key(p.r,p.c);if(!numbers[k])numbers[k]=++n;p.num=numbers[k]}
+ placements.sort((a,b)=>a.num-b.num);selected=placements.length?{r:placements[0].r,c:placements[0].c}:null;direction=placements[0]?.dir||'across';
+ limitMinutes=Math.max(0,Number(data.timeLimit)||0);secondsLeft=limitMinutes*60;started=false;finished=false;stopTimer();$('timer').textContent=formatTime(secondsLeft);
+ $('buildStatus').textContent=`Ҷойгир шуд: ${placements.length} аз ${entries.length} калима.`+(failed.length?' Ҷой нагирифт: '+failed.join(', '):' Ҳама ҷойгир шуданд.');
+ renderTeacher();renderStudent();renderAnswerKey();updateProgress();
+}
+function parseCurrent(){let e=parse();if(!e.length)throw Error('Калимаҳои дуруст ворид нашудаанд');return e}
+function bounds(){let a=Object.keys(cells).map(k=>k.split(',').map(Number));return{rows:Math.max(...a.map(x=>x[0]))+1,cols:Math.max(...a.map(x=>x[1]))+1}}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showFullClue(number, clue, imageSrc=''){
+ let modal=document.getElementById('fullClueModal');
+ if(!modal){modal=document.createElement('div');modal.id='fullClueModal';modal.className='fullClueModal';modal.innerHTML='<div class="fullClueBox" role="dialog" aria-modal="true"><div class="fullClueHead"><b id="fullClueNumber"></b><button type="button" id="closeFullClue">✕</button></div><img id="fullClueImage" class="fullClueImage hidden" alt="Расми савол"><div id="fullClueText" class="fullClueText"></div></div>';document.body.append(modal);modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show')});modal.querySelector('#closeFullClue').onclick=()=>modal.classList.remove('show');}
+ modal.querySelector('#fullClueNumber').textContent='Саволи '+number;
+ const img=modal.querySelector('#fullClueImage');if(imageSrc){img.src=imageSrc;img.classList.remove('hidden')}else{img.removeAttribute('src');img.classList.add('hidden')}
+ modal.querySelector('#fullClueText').textContent=clue;
+ modal.classList.add('show');
+}
+function makeClueCell(p,mode){
+ const e=entries[p.idx],b=document.createElement('button');b.type='button';b.className='cell black clueCell';
+ b.style.setProperty('--clue-size',clueFontSize+'px');b.style.setProperty('--clue-text',clueTextColor);
+ const num=document.createElement('span');num.className='clueCellNum';num.textContent=p.num+'.';
+ const txt=document.createElement('span');txt.className='clueCellText';txt.textContent=e.clue;
+ b.append(num,txt);b.title='Барои хондани саволи пурра зер кунед';
+ b.onclick=(ev)=>{ev.stopPropagation();showFullClue(p.num,e.clue,e.image||'')};
+ return b;
+}
+function buildGrid(target,mode){
+ if(!placements.length)return;let{rows,cols}=bounds();$(mode+'Dimensions').textContent=`${rows} × ${cols}`;
+ let grid=document.createElement('div');grid.className='grid';
+ // Савол дар ҳуҷайраи бастаи бевосита ПЕШИ оғози ҷавоб ҷойгир мешавад:
+ // барои ҷавоби уфуқӣ — аз чап, барои ҷавоби амудӣ — аз боло.
+ let clueAt={},fallbackAt={},minR=0,minC=0;
+ if(questionDisplay==='inside'){
+  for(const p of placements){if(p.dir==='across')minC=Math.min(minC,p.c-1);else minR=Math.min(minR,p.r-1)}
+  for(const p of placements.slice().sort((a,b)=>a.num-b.num)){
+   const cr=p.dir==='across'?p.r:p.r-1,cc=p.dir==='across'?p.c-1:p.c,k=key(cr,cc);
+   if(!get(cr,cc)&&!clueAt[k])clueAt[k]=p;
+   else fallbackAt[key(p.r,p.c)]=p;
+  }
+ }
+ const maxR=rows-1,maxC=cols-1,totalRows=maxR-minR+1,totalCols=maxC-minC+1;
+ grid.style.gridTemplateColumns=`repeat(${totalCols},auto)`;
+ for(let r=minR;r<=maxR;r++)for(let c=minC;c<=maxC;c++){
+  let d=get(r,c),b=document.createElement('button');b.type='button';b.className='cell'+(d?'':' black');
+  if(d){
+   if(numbers[key(r,c)]){let n=document.createElement('span');n.className='num';n.textContent=numbers[key(r,c)];b.append(n)}
+   let v=document.createElement('span');v.textContent=mode==='teacher'?d.ch:(d.value||'');b.append(v);
+   if(mode==='student'){b.setAttribute('aria-label',`Ҳуҷайра ${r+1}, ${c+1}`);b.onmousedown=ev=>ev.preventDefault();if(selected&&selected.r===r&&selected.c===c)b.classList.add('active');if(started&&!finished)b.onclick=()=>{selectCell(r,c);focusNativeLetterInput()}}
+   if(fallbackAt[key(r,c)]){let badge=document.createElement('span');badge.className='clueSideBadge';badge.textContent=fallbackAt[key(r,c)].num+'.';badge.title='Саволро кушоед';badge.onclick=ev=>{ev.stopPropagation();let p=fallbackAt[key(r,c)];showFullClue(p.num,entries[p.idx].clue,entries[p.idx].image||'')};b.append(badge)}
+  }else if(clueAt[key(r,c)]){b=makeClueCell(clueAt[key(r,c)],mode)}
+  grid.append(b);
+ }
+ $(target).innerHTML='';$(target).append(grid);
+}
+function renderImageSheet(target){let host=$(target);host.innerHTML='';let imageEntries=placements.filter(p=>entries[p.idx]&&entries[p.idx].image).sort((a,b)=>a.num-b.num);let seen=new Set();imageEntries.forEach(p=>{if(seen.has(p.idx))return;seen.add(p.idx);let e=entries[p.idx],card=document.createElement('div');card.className='imageCard';let img=document.createElement('img');img.src=e.image;img.alt='Расми таҷҳизот барои саволи '+p.num;let caption=document.createElement('div');caption.className='imageQuestion';caption.innerHTML='<span class="imageNumber">'+p.num+'.</span>'+escapeHtml(e.clue);card.append(img,caption);host.append(card)})}
+function renderClues(target,interactive){let groups={across:[],down:[]};placements.forEach(p=>groups[p.dir].push(p));$(target).innerHTML='';
+ for(let dir of ['across','down']){let g=document.createElement('div');g.className='clueGroup';let h=document.createElement('h3');h.textContent=dir==='across'?'→ Уфуқӣ':'↓ Амудӣ';g.append(h);groups[dir].sort((a,b)=>a.num-b.num).forEach(p=>{let d=document.createElement('div');d.className='clue'+(interactive&&selected&&p.dir===direction&&p.r===selected.r&&p.c===selected.c?' selected':'');d.innerHTML=`<small>${p.num}.</small> <span class="clueText">${escapeHtml(entries[p.idx].clue)}</span>`;if(interactive)d.onclick=()=>{if(!started||finished)return;direction=p.dir;selected={r:p.r,c:p.c};renderStudent();focusNativeLetterInput()};g.append(d)});$(target).append(g)}}
+function renderTeacher(){buildGrid('teacherBoard','teacher');renderImageSheet('teacherImageSheet');renderClues('teacherClues',false);let holes=placements.length?bounds().rows*bounds().cols-Object.keys(cells).length:0;$('teacherClues').style.display=questionDisplay==='inside'&&holes>=placements.length?'none':''}
+function keepActiveCellInView(){const wrap=$('studentBoard'),cell=wrap?.querySelector('.cell.active');if(!wrap||!cell)return;const wr=wrap.getBoundingClientRect(),cr=cell.getBoundingClientRect(),pad=18;if(cr.bottom>wr.bottom-pad)wrap.scrollTop+=cr.bottom-(wr.bottom-pad);else if(cr.top<wr.top+pad)wrap.scrollTop-=((wr.top+pad)-cr.top);if(cr.right>wr.right-pad)wrap.scrollLeft+=cr.right-(wr.right-pad);else if(cr.left<wr.left+pad)wrap.scrollLeft-=((wr.left+pad)-cr.left)}
+function renderStudent(){const pageX=window.scrollX,pageY=window.scrollY,wrap=$('studentBoard'),wrapTop=wrap?.scrollTop||0,wrapLeft=wrap?.scrollLeft||0;buildGrid('studentBoard','student');renderImageSheet('studentImageSheet');renderClues('studentClues',true);let holes=placements.length?bounds().rows*bounds().cols-Object.keys(cells).length:0;$('studentClues').style.display=questionDisplay==='inside'&&holes>=placements.length?'none':'';if(wrap){wrap.scrollTop=wrapTop;wrap.scrollLeft=wrapLeft}if(window.scrollX!==pageX||window.scrollY!==pageY)window.scrollTo({left:pageX,top:pageY,behavior:'instant'});keepActiveCellInView()}
+function renderAnswerKey(){$('answerKey').innerHTML=entries.map((e,i)=>`<div><b>${i+1}. ${escapeHtml(e.word)}</b> — ${escapeHtml(e.clue)}</div>`).join('')}
+function selectCell(r,c){let d=get(r,c);if(!d)return;if(selected&&selected.r===r&&selected.c===c){let other=direction==='across'?'down':'across';if(d.words.some(i=>placements.find(p=>p.idx===i)?.dir===other))direction=other}else{selected={r,c};if(!placements.some(p=>p.dir===direction&&p.r===r&&p.c===c)){let p=placements.find(p=>p.r===r&&p.c===c);if(p)direction=p.dir}}renderStudent()}
+function activePlacement(){if(!selected)return null;return placements.find(p=>{let len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0;return p.dir===direction&&selected.r>=p.r&&selected.c>=p.c&&selected.r<p.r+dr*len+(dr?0:1)&&selected.c<p.c+dc*len+(dc?0:1)})}
+function typeLetter(ch){if(!started||finished||!selected||!get(selected.r,selected.c))return;get(selected.r,selected.c).value=ch;let p=activePlacement();if(p){let len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,i=(selected.r-p.r)*dr+(selected.c-p.c)*dc;for(let j=i+1;j<len;j++){let r=p.r+dr*j,c=p.c+dc*j;if(get(r,c)){selected={r,c};break}}}renderStudent();updateProgress()}
+function erase(){if(!started||finished||!selected)return;get(selected.r,selected.c).value='';renderStudent();updateProgress()}
+function makeKeyboard(){let k=$('keyboard');k.innerHTML='';alphabet.forEach(ch=>{let b=document.createElement('button');b.textContent=ch;b.onclick=()=>typeLetter(ch);k.append(b)});let d=document.createElement('button');d.textContent='⌫';d.className='erase';d.onclick=erase;k.append(d)}
+function updateProgress(){let a=Object.values(cells),filled=a.filter(x=>x.value).length;$('filled').textContent=filled;$('total').textContent=a.length;$('progress').textContent=(a.length?Math.round(filled/a.length*100):0)+'%'}
+function formatTime(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function stopTimer(){if(timerId)clearInterval(timerId);timerId=null}
+function startTest(){if(!placements.length){alert('Аввал файли супоришро кушоед.');return}if(!$('studentName').value.trim()){alert('Ному насабро ворид кунед.');return}if(started||finished)return;started=true;$('studentFeedback').textContent='Санҷиш оғоз шуд. Ҳарф, рақам ва аломатҳоро ворид кунед. Муваффақият!';if(limitMinutes>0)timerId=setInterval(()=>{secondsLeft--; $('timer').textContent=formatTime(secondsLeft);if(secondsLeft<=0){stopTimer();finishTest(true)}},1000);renderStudent();focusNativeLetterInput()}
+function finishTest(auto=false){if(!started||finished){if(!started)alert('Аввал санҷишро оғоз кунед.');return}finished=true;stopTimer();nativeLetterInput.blur();
+ let questionResults=placements.map(p=>{let e=entries[p.idx],dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,answer='';for(let i=0;i<e.word.length;i++){let cell=get(p.r+dr*i,p.c+dc*i);answer+=cell?.value||''}let expected=clean(e.word),given=clean(answer);return{number:p.num,clue:e.clue,expected,given,correct:given===expected,answered:given.length>0&&given.length===expected.length,complete:given.length===expected.length}});
+ let correct=questionResults.filter(x=>x.correct).length,total=questionResults.length,wrong=total-correct,unanswered=questionResults.filter(x=>!x.given.length).length,score=total?Math.round(correct/total*100):0,elapsed=limitMinutes*60-secondsLeft;
+ let rec={name:$('studentName').value.trim(),score,correct,wrong,unanswered,total,date:new Date().toLocaleString('tg-TJ'),seconds:elapsed};let all=JSON.parse(localStorage.getItem('crosswordResultsTg')||'[]');all.push(rec);localStorage.setItem('crosswordResultsTg',JSON.stringify(all));
+ const wrongItems=questionResults.filter(x=>!x.correct);
+ const wrongNumbers=wrongItems.map(x=>x.number).join(', ');
+ const wrongHtml=wrongItems.length?`<div class="wrongQuestions"><b>Рақами саволҳои нодуруст:</b><p>${escapeHtml(wrongNumbers)}</p></div>`:'<p class="rightAnswer"><b>Ҳамаи ҷавобҳо дурустанд.</b></p>';
+ const encouragements=[
+ 'Ҳар як кӯшиш туро ба муваффақият наздиктар мекунад. Ноумед нашав!',
+ 'Имрӯз таҷриба гирифтӣ, фардо натиҷаи беҳтар нишон медиҳӣ!',
+ 'Хатоҳо зинаҳои омӯзишанд. Бори дигар кӯшиш кун!',
+ 'Ба қобилияти худ бовар дошта бош — ту метавонӣ!',
+ 'Муҳим он аст, ки таслим намешавӣ. Пеш рав!',
+ 'Ҳар бор машқ кунӣ, дониши ту қавитар мешавад!',
+ 'Натиҷаи имрӯза охири роҳ нест, балки оғози пешрафт аст!',
+ 'Оҳиста-оҳиста ҳам бошад, ба сӯи мақсад ҳаракат кун!',
+ 'Аз ҳар ҷавоби нодуруст чизе меомӯзӣ. Кӯшишро давом деҳ!',
+ 'Муваффақият бо сабр ва такрори машқ ба даст меояд!',
+ 'Имрӯз камтар шуд, аммо фардо метавонӣ бештар ба даст биёрӣ!',
+ 'Ба худ имкони дигар деҳ — натиҷаи хуб дар пеш аст!',
+ 'Қадам ба қадам пеш меравӣ. Аз идома додан даст накаш!',
+ 'Дониш бо машқ зиёд мешавад. Бори дигар худро бисанҷ!',
+ 'Ҳар мутахассис аз омӯзиш ва хатогиҳо оғоз кардааст!',
+ 'Рӯҳияатро нигоҳ дор — кӯшиши нав имконияти нав аст!',
+ 'Ту аллакай як қадам гузоштӣ. Акнун боз ҳам беҳтар кун!',
+ 'Муҳим на хол, балки хоҳиши омӯхтан ва пеш рафтан аст!',
+ 'Бо диққат ва машқи бештар ҳатман пешравӣ мекунӣ!',
+ 'Ба натиҷаи паст дилгир нашав: имкони беҳтар шудан ҳамеша ҳаст!'
+ ];
+ let awardHtml=score>=90?'<div class="award"><span class="cup">🏆</span><strong>ҶОМИ ТИЛЛОӢ</strong><span>Натиҷаи аъло!</span></div>':score>=75?'<div class="award silver"><span class="cup">🏆</span><strong>ҶОМИ НУҚРАГӢ</strong><span>Натиҷаи хеле хуб!</span></div>':score>=60?'<div class="award bronze"><span class="cup">🏆</span><strong>ҶОМИ БИРИНҶӢ</strong><span>Натиҷаи хуб!</span></div>':`<div class="award encourage"><span class="cup">💪</span><strong>Кӯшишро идома диҳед!</strong><span>${encouragements[(all.length-1)%encouragements.length]}</span></div>`;
+ $('studentFeedback').innerHTML=(auto?'Вақт ба охир расид. ':'')+`<b>Натиҷаи санҷиш: ${score}%</b>${awardHtml}<div class="scoreBox"><div class="scoreItem good"><b>${correct}</b>Ҷавоби дуруст</div><div class="scoreItem bad"><b>${wrong}</b>Ҷавоби нодуруст</div><div class="scoreItem neutral"><b>${total}</b>Ҳамагӣ савол</div><div class="scoreItem"><b>${unanswered}</b>Бе ҷавоб</div></div>${wrongHtml}<p>Барои фиристодани натиҷа тугмаи «Сабти ҷавобҳои ман»-ро пахш кунед.</p>`;
+ window.studentQuestionResults=questionResults;renderResults();renderStudent()}
+function renderResults(){let a=JSON.parse(localStorage.getItem('crosswordResultsTg')||'[]');$('resultsList').innerHTML=a.length?a.slice().reverse().map(x=>`<div class="result"><b>${escapeHtml(x.name)}</b> — ${x.score}% — дуруст: ${x.correct}, нодуруст: ${x.wrong??(x.total-x.correct)}, ҳамагӣ: ${x.total}<br><span class="hint">${escapeHtml(x.date)}</span></div>`).join(''):'Ҳоло натиҷа сабт нашудааст.'}
+function download(name,content,type){let blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function exportStudentFile(){if(!entries.length){alert('Аввал сканворд созед.');return}let design=JSON.parse(localStorage.getItem('skanvordDesignTg')||'null');let payload={format:'skanvord-student-v1',design:design||{...currentDesign(),backgroundImage:customBackgroundImage,blackCellImage,sectionImages},timeLimit:limitMinutes,questionDisplay:{questionDisplay,clueFontSize,clueTextColor},entries,placements:placements.map(p=>({idx:p.idx,r:p.r,c:p.c,dir:p.dir,num:p.num})),grid:Object.keys(cells).map(k=>{let[r,c]=k.split(',').map(Number);return{r,c,answer:cells[k].ch}})};download('suporishi_skanvord.json',JSON.stringify(payload),'application/json')}
+function loadStudentPuzzle(data){
+ if(data.questionDisplay){questionDisplay=data.questionDisplay.questionDisplay||'below';clueFontSize=data.questionDisplay.clueFontSize||'6';clueTextColor=data.questionDisplay.clueTextColor||'#ffffff';applyQuestionDisplay();}
+ if(data.design){let d=data.design;blackCellImage=d.blackCellImage||'';customBackgroundImage=d.backgroundImage||'';sectionImages=d.sectionImages||{header:'',panel:'',board:''};applyDesign(d);}
+ if(data.format!=='skanvord-student-v1'||!Array.isArray(data.entries)||!Array.isArray(data.placements)||!Array.isArray(data.grid))throw Error('Файли супориш нодуруст аст');
+ entries=data.entries.map(x=>({word:clean(x.word),clue:String(x.clue||''),image:x.image||''}));
+ placements=data.placements.map(p=>({...p}));
+ // Ҳангоми ҳар бор кушодани файли донишҷӯ тартиби рақамҳои саволҳо тасодуфӣ мешавад;
+ // ҷойгиршавии худи калимаҳо дар шабака тағйир намеёбад.
+ for(let i=placements.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[placements[i],placements[j]]=[placements[j],placements[i]];}
+ placements.forEach((p,i)=>{p.num=i+1});
+ cells={};numbers={};
+ data.grid.forEach(x=>{cells[key(x.r,x.c)]={ch:clean(x.answer)[0]||'',value:'',words:[]}});
+ placements.forEach(p=>{
+  let dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0;
+  if(!entries[p.idx])throw Error('Маълумоти калима дар файл нодуруст аст');
+  for(let i=0;i<entries[p.idx].word.length;i++){
+   let cell=get(p.r+dr*i,p.c+dc*i);
+   if(!cell)throw Error('Ҷойгиршавии ҳуҷайраҳо дар файл нодуруст аст');
+   cell.words.push(p.idx);
+  }
+  numbers[key(p.r,p.c)]=p.num;
+ });
+ selected=placements.length?{r:placements[0].r,c:placements[0].c}:null;
+ direction=placements[0]?.dir||'across';
+ limitMinutes=Math.max(0,Number(data.timeLimit)||0);secondsLeft=limitMinutes*60;
+ started=false;finished=false;checked=false;stopTimer();
+ $('timer').textContent=formatTime(secondsLeft);
+ $('studentStatus').textContent='Супориш кушода шуд. Ҳангоми ҷавоб ҳарф, рақам ва аломатҳоро ворид кунед.';
+ $('studentFeedback').textContent='Ному насабро ворид карда, санҷишро оғоз кунед.';
+ $('startTest').disabled=false;$('finishTest').disabled=false;
+ renderStudent();updateProgress();
+}
+$('buildImageFields').onclick=renderImageFields;
+ $('generate').onclick=()=>{try{let e=parseCurrent();makePuzzle({entries:e,timeLimit:$('timeLimit').value})}catch(e){alert(e.message)}};
+$('sample').onclick=()=>{entryImages={};$('wordInput').value='БАРҚ | Шакли энергия\\nҶАРАЁН | Ҳаракати зарядҳои электрикӣ\\nШИДДАТ | Фарқи потенсиалҳо\\nҚУВВА | Таъсири ҷисм ба ҷисм\\nГЕНЕРАТОР | Табдилдиҳандаи энергияи механикӣ\\nТРАНСФОРМАТОР | Таҷҳизот барои тағйири шиддат\\nАККУМУЛЯТОР | Манбаи ҷараёни химиявӣ';renderImageFields()};
+$('clearInput').onclick=()=>{$('wordInput').value='';entryImages={};renderImageFields()};
+$('saveStudentFile').onclick=exportStudentFile;
+$('saveTeacherProject').onclick=()=>{
+ const e=parseCurrent();
+ const savedDesign=JSON.parse(localStorage.getItem('skanvordDesignTg')||'null');const project={format:'skanvord-teacher-project-v1',design:savedDesign||{...currentDesign(),backgroundImage:customBackgroundImage,blackCellImage,sectionImages},timeLimit:Math.max(0,Number($('timeLimit').value)||0),questionDisplay:{questionDisplay,clueFontSize,clueTextColor},entries:e};
+ download('fayli_korii_muallim.json',JSON.stringify(project,null,2),'application/json');
+};
+function loadIntoTeacher(data){
+ if(data.questionDisplay){questionDisplay=data.questionDisplay.questionDisplay||'below';clueFontSize=data.questionDisplay.clueFontSize||'6';clueTextColor=data.questionDisplay.clueTextColor||'#ffffff';applyQuestionDisplay();}
+ if(data.design){let d=data.design;blackCellImage=d.blackCellImage||'';customBackgroundImage=d.backgroundImage||'';sectionImages=d.sectionImages||{header:'',panel:'',board:''};applyDesign(d);try{localStorage.setItem('skanvordDesignTg',JSON.stringify(d));}catch(e){}}
+ if(!Array.isArray(data.entries)||!data.entries.length)throw Error('Дар файл саволҳо ёфт нашуданд');
+ entryImages={};
+ $('wordInput').value=data.entries.map((x,i)=>{
+  if(x.image)entryImages[i]=x.image;
+  return clean(x.word)+' | '+normalizeQuestionText(x.clue||'').replace(/\n/g,' ');
+ }).join('\n');
+ $('timeLimit').value=Number(data.timeLimit??10);
+ renderImageFields();
+ makePuzzle({entries:parseCurrent(),timeLimit:$('timeLimit').value});
+ $('buildStatus').textContent='Файли пешина ба панели муаллим бор шуд. Акнун метавонед саволҳоро иваз, илова ё нест кунед ва боз «Сохтани сканворд»-ро пахш намоед.';
+};
+
+$('saveTeacherKey').onclick=()=>{if(!entries.length)return alert('Аввал сканворд созед.');download('kalidi_javobho.json',JSON.stringify({format:'skanvord-answer-key',entries,placements},null,2),'application/json')};
+$('loadFile').onclick=()=>$('fileInput').click();
+$('fileInput').onchange=async e=>{
+ try{
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  const raw=await file.text();
+  let d;
+  if(file.name.toLowerCase().endsWith('.html')||file.name.toLowerCase().endsWith('.htm')){
+   const doc=new DOMParser().parseFromString(raw,'text/html');
+   const area=doc.querySelector('#wordInput');
+   if(!area)throw Error('Дар ин HTML майдони саволҳо ёфт нашуд. Файли барномаи сканвордро интихоб кунед.');
+   $('wordInput').value=normalizeQuestionText(area.value||area.textContent||'');
+   const oldLimit=doc.querySelector('#timeLimit');
+   if(oldLimit)$('timeLimit').value=oldLimit.value||oldLimit.getAttribute('value')||10;
+   entryImages={};
+   renderImageFields();
+   const parsed=parseCurrent();
+   if(!parsed.length)throw Error('Дар файли HTML саволҳо нестанд.');
+   makePuzzle({entries:parsed,timeLimit:$('timeLimit').value});
+   $('buildStatus').textContent='Файли HTML кушода шуд. Саволҳои дар он нигоҳдоштаро таҳрир карда метавонед.';
+   $('teacherTab').click();
+  }else{
+   d=JSON.parse(raw);
+   if(d.format==='skanvord-student-v1'||d.format==='skanvord-teacher-project-v1'||Array.isArray(d.entries)){
+    loadIntoTeacher(d);
+    $('teacherTab').click();
+   }else throw Error('Формати файл нодуруст аст');
+  }
+ }catch(err){alert('Файл кушода нашуд: '+err.message)}
+ e.target.value='';
+};
+$('openStudentFile').onclick=()=>$('studentFileInput').click();
+$('studentFileInput').onchange=async e=>{try{loadStudentPuzzle(JSON.parse(await e.target.files[0].text()))}catch(err){alert('Ин файли супориши донишҷӯ нест ё вайрон шудааст.')}e.target.value=''};
+// Панели муаллим бо рамзи махфӣ муҳофизат мешавад.
+let teacherUnlocked=false;
+function showTeacher(){
+ $('designScreen').classList.add('hidden');$('designTab').classList.remove('active');
+ if(!teacherUnlocked){
+  const entered=prompt('Барои ворид шудан ба панели муаллим рамзро ворид кунед:');
+  if(entered===null)return;
+  if(entered!=='1997'){alert('Рамз нодуруст аст. Дастрасӣ иҷозат дода нашуд.');return;}
+  teacherUnlocked=true;
+ }
+ $('teacherScreen').classList.remove('hidden');$('studentScreen').classList.add('hidden');
+ $('teacherTab').classList.add('active');$('studentTab').classList.remove('active');
+}
+$('teacherTab').onclick=showTeacher;
+$('studentTab').onclick=()=>{$('designScreen').classList.add('hidden');$('designTab').classList.remove('active');$('studentScreen').classList.remove('hidden');$('teacherScreen').classList.add('hidden');$('studentTab').classList.add('active');$('teacherTab').classList.remove('active')};
+
+nativeLetterInput.addEventListener('input',()=>{
+ const raw=nativeLetterInput.value.toLocaleUpperCase('tg');
+ const ch=Array.from(raw).find(x=>!/^\s+$/u.test(x));
+ nativeLetterInput.value='';
+ if(ch)typeLetter(ch);
+});
+nativeLetterInput.addEventListener('keydown',e=>{
+ if(e.key==='Backspace'||e.key==='Delete'){e.preventDefault();erase();return;}
+ if(e.key==='Enter'){e.preventDefault();focusNativeLetterInput();}
+});
+
+$('startTest').onclick=startTest;$('finishTest').onclick=()=>finishTest(false);
+$('studentExport').onclick=()=>{if(!finished){alert('Аввал санҷишро анҷом диҳед.');return}let payload={name:$('studentName').value,answers:Object.keys(cells).map(k=>{let[r,c]=k.split(',').map(Number);return{r,c,value:cells[k].value}}),summary:finished?JSON.parse(localStorage.getItem('crosswordResultsTg')||'[]').slice(-1)[0]:null,date:new Date().toISOString()};download('javobhoi_donishju.json',JSON.stringify(payload,null,2),'application/json')};
+$('exportResults').onclick=()=>{let a=JSON.parse(localStorage.getItem('crosswordResultsTg')||'[]');if(!a.length)return alert('Натиҷа нест');let rows=[['Ному насаб','Хол (%)','Ҷавоби дуруст','Ҷавоби нодуруст','Бе ҷавоб','Ҳамагӣ','Сана'],...a.map(x=>[x.name,x.score,x.correct,x.wrong??(x.total-x.correct),x.unanswered??'',x.total,x.date])];download('natijaho.csv','\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\n'),'text/csv;charset=utf-8')};
+$('clearResults').onclick=()=>{if(confirm('Ҳама натиҷаҳо пок шаванд?')){localStorage.removeItem('crosswordResultsTg');renderResults()}};
+$('teacherPrint').onclick=()=>window.print();$('studentPrint').onclick=()=>window.print();
+document.addEventListener('keydown',e=>{
+ // Майдонҳои матнӣ бояд клавиатураи муқаррариро қабул кунанд.
+ // Истисно: nativeLetterInput, ки танҳо барои ворид кардани ҳарф ба сканворд аст.
+ if(e.target===nativeLetterInput||e.ctrlKey||e.metaKey||e.altKey)return;
+ const tag=(e.target&&e.target.tagName||'').toLowerCase();
+ if(['input','textarea','select'].includes(tag)||e.target?.isContentEditable)return;
+ if(!started||finished)return;
+ let ch=e.key.toLocaleUpperCase('tg');
+ if(Array.from(e.key).length===1&&!/^\s+$/u.test(e.key)){typeLetter(ch);e.preventDefault()}
+ else if(e.key==='Backspace'||e.key==='Delete'){erase();e.preventDefault()}
+ else if(e.key==='ArrowRight'||e.key==='ArrowDown'){move(1);e.preventDefault()}
+ else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){move(-1);e.preventDefault()}
+});
+function move(step){if(!started||finished||!selected)return;let r=selected.r+(direction==='down'?step:0),c=selected.c+(direction==='across'?step:0);if(get(r,c)){selected={r,c};renderStudent()}}
+renderResults();renderImageFields();try{makePuzzle({entries:parse(),timeLimit:10})}catch(e){}
+
+// Идоракунии намуди зоҳирӣ аз ҷониби корбар
+const designDefaults={bg:'#eaf1fb',panel:'#ffffff',head1:'#10264d',head2:'#6854c8',board:'#e8eef8',black:'#263b5b',accent:'#315fe8'};
+const designMap={bg:'--bg',panel:'--panel',head1:'--head1',head2:'--head2',board:'--boardbg',black:'--blackcell',accent:'--blue'};
+let customBackgroundImage='', blackCellImage='', sectionImages={header:'',panel:'',board:''};
+let questionDisplay='below', clueFontSize='6', clueTextColor='#ffffff';
+function applyQuestionDisplay(){document.documentElement.style.setProperty('--clue-size',clueFontSize+'px');document.documentElement.style.setProperty('--clue-text',clueTextColor);if($('questionDisplay'))$('questionDisplay').value=questionDisplay;if($('clueFontSize'))$('clueFontSize').value=clueFontSize;if($('clueTextColor'))$('clueTextColor').value=clueTextColor;}
+function saveQuestionDisplay(){questionDisplay=$('questionDisplay').value;clueFontSize=$('clueFontSize').value;clueTextColor=$('clueTextColor').value;applyQuestionDisplay();try{localStorage.setItem('skanvordQuestionDisplayTg',JSON.stringify({questionDisplay,clueFontSize,clueTextColor}));}catch(e){}renderTeacher();renderStudent();}
+let lastAppScreen='student';
+function applyDesign(d){Object.keys(designMap).forEach(k=>{let v=d[k]||designDefaults[k];document.documentElement.style.setProperty(designMap[k],k==='panel'?hexToRgba(v,.94):v);let el=$('design'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.value=v;});document.documentElement.style.setProperty('--blackcell-image',blackCellImage?`url(\"${blackCellImage}\")`:'none');applyBackgroundImage(customBackgroundImage);applySectionImages();}
+function applySectionImages(){document.querySelectorAll('header').forEach(el=>{el.style.backgroundImage=sectionImages.header?`linear-gradient(rgba(16,38,77,.62),rgba(16,38,77,.62)),url("${sectionImages.header}")`:'';el.style.backgroundSize='cover';el.style.backgroundPosition='center'});document.querySelectorAll('.panel').forEach(el=>{el.style.backgroundImage=sectionImages.panel?`linear-gradient(rgba(255,255,255,.78),rgba(255,255,255,.78)),url("${sectionImages.panel}")`:'';el.style.backgroundSize='cover';el.style.backgroundPosition='center'});document.querySelectorAll('.boardWrap').forEach(el=>{el.style.backgroundImage=sectionImages.board?`linear-gradient(rgba(255,255,255,.35),rgba(255,255,255,.35)),url("${sectionImages.board}")`:'';el.style.backgroundSize='cover';el.style.backgroundPosition='center'});}
+function applyBackgroundImage(data){customBackgroundImage=data||'';document.body.style.backgroundImage=data?`linear-gradient(rgba(234,241,251,.78),rgba(234,241,251,.78)),url("${data}")` : '';document.body.style.backgroundSize=data?'cover':'';document.body.style.backgroundPosition=data?'center center':'';document.body.style.backgroundAttachment=data?'fixed':'';}
+function hexToRgba(hex,a){let h=hex.replace('#','');let n=parseInt(h,16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`}
+function currentDesign(){let d={};Object.keys(designMap).forEach(k=>{let el=$('design'+k.charAt(0).toUpperCase()+k.slice(1));d[k]=el?el.value:designDefaults[k]});return d}
+function saveDesign(){let d=currentDesign();applyDesign(d);try{localStorage.setItem('skanvordDesignTg',JSON.stringify({...d,backgroundImage:customBackgroundImage,blackCellImage,sectionImages}));$('designStatus').textContent='Дизайн сабт шуд. Ҳангоми кушодани дубораи барнома низ нигоҳ дошта мешавад.';}catch(e){$('designStatus').textContent='Расм хеле калон аст. Лутфан расми хурдтар интихоб кунед.';}}
+function showDesign(){lastAppScreen=$('teacherScreen').classList.contains('hidden')?'student':'teacher';$('teacherScreen').classList.add('hidden');$('studentScreen').classList.add('hidden');$('designScreen').classList.remove('hidden');$('teacherTab').classList.remove('active');$('studentTab').classList.remove('active');$('designTab').classList.add('active');}
+function leaveDesign(){ $('designScreen').classList.add('hidden');$('designTab').classList.remove('active');if(lastAppScreen==='teacher'){if(!teacherUnlocked){showTeacher();return;}$('teacherScreen').classList.remove('hidden');$('teacherTab').classList.add('active');$('studentTab').classList.remove('active');}else{$('studentScreen').classList.remove('hidden');$('studentTab').classList.add('active');$('teacherTab').classList.remove('active');}}
+$('designTab').onclick=showDesign;
+$('studentTab').onclick=()=>{$('designScreen').classList.add('hidden');$('designTab').classList.remove('active');$('studentScreen').classList.remove('hidden');$('teacherScreen').classList.add('hidden');$('studentTab').classList.add('active');$('teacherTab').classList.remove('active')};
+$('teacherTab').addEventListener('click',()=>{$('designScreen').classList.add('hidden');$('designTab').classList.remove('active')});
+$('backFromDesign').onclick=leaveDesign;
+Object.keys(designMap).forEach(k=>{let el=$('design'+k.charAt(0).toUpperCase()+k.slice(1));el.addEventListener('input',()=>{let d=currentDesign();Object.keys(designMap).forEach(key=>document.documentElement.style.setProperty(designMap[key],key==='panel'?hexToRgba(d[key],.94):d[key]));$('designStatus').textContent='Тағйирот пешнамоиш дода шуд. Барои нигоҳ доштан «Сабти дизайн»-ро пахш кунед.'})});
+function readDesignImage(file,maxSize,quality,done){if(!file)return;if(!file.type.startsWith('image/')){alert('Лутфан файли расм интихоб кунед.');return;}const reader=new FileReader();reader.onload=()=>{const data=reader.result;const isGif=file.type.toLowerCase()==='image/gif'||/\.gif$/i.test(file.name);if(isGif){done(data,true);return;}const img=new Image();img.onload=()=>{const scale=Math.min(1,maxSize/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);done(c.toDataURL('image/jpeg',quality),false);};img.onerror=()=>done(data,false);img.src=data;};reader.readAsDataURL(file);}
+$('designBgFile').addEventListener('change',e=>readDesignImage(e.target.files&&e.target.files[0],1600,.78,(data,isGif)=>{customBackgroundImage=data;applyBackgroundImage(data);$('bgImageStatus').textContent=(isGif?'GIF-и аниматсионӣ интихоб шуд ва ҳаракат мекунад. ':'Расми фон интихоб шуд. ')+'Барои нигоҳ доштан «Сабти дизайн»-ро пахш кунед.';}));
+$('removeBgImage').onclick=()=>{applyBackgroundImage('');$('designBgFile').value='';$('bgImageStatus').textContent='Расми фон пок карда шуд. Барои нигоҳ доштан «Сабти дизайн»-ро пахш кунед.';};
+function readSectionImage(file,done){readDesignImage(file,1400,.72,(data,isGif)=>done(data,isGif));}
+[['headerImageFile','header'],['panelImageFile','panel'],['boardImageFile','board']].forEach(([id,key])=>$(id).addEventListener('change',e=>readSectionImage(e.target.files&&e.target.files[0],(data,isGif)=>{sectionImages[key]=data;applySectionImages();$('sectionImageStatus').textContent=(isGif?'GIF-и аниматсионӣ интихоб шуд ва ҳаракат мекунад. ':'Расм интихоб шуд. ')+'Барои нигоҳ доштан «Сабти дизайн»-ро пахш кунед.';})));
+[['removeHeaderImage','header'],['removePanelImage','panel'],['removeBoardImage','board']].forEach(([id,key])=>$(id).onclick=()=>{sectionImages[key]='';applySectionImages();$(key==='header'?'headerImageFile':key==='panel'?'panelImageFile':'boardImageFile').value='';$('sectionImageStatus').textContent='Расми ин қисм пок карда шуд.';});
+$('blackCellImageFile').addEventListener('change',e=>readSectionImage(e.target.files&&e.target.files[0],(data,isGif)=>{blackCellImage=data;applyDesign(currentDesign());$('designStatus').textContent=(isGif?'GIF-и аниматсионӣ барои ҳуҷайраҳои баста интихоб шуд. ':'Расми ҳуҷайраҳои баста интихоб шуд. ')+'Барои нигоҳ доштан «Сабти дизайн»-ро пахш кунед.';}));
+$('removeBlackCellImage').onclick=()=>{blackCellImage='';$('blackCellImageFile').value='';applyDesign(currentDesign());$('designStatus').textContent='Расми ҳуҷайраҳои баста пок карда шуд.';};
+$('saveDesign').onclick=saveDesign;
+$('resetDesign').onclick=()=>{customBackgroundImage='';blackCellImage='';$('blackCellImageFile').value='';sectionImages={header:'',panel:'',board:''};applyDesign(designDefaults);localStorage.removeItem('skanvordDesignTg');$('designBgFile').value='';$('bgImageStatus').textContent='Расми фон нест.';$('designStatus').textContent='Дизайни ибтидоӣ барқарор карда шуд.'};
+document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{let presets={blue:{...designDefaults},purple:{bg:'#f1edff',panel:'#ffffff',head1:'#35205f',head2:'#8b5cf6',board:'#eee8ff',black:'#30204d',accent:'#7046d8'},green:{bg:'#eaf5ef',panel:'#ffffff',head1:'#123b32',head2:'#32936f',board:'#e4f1e9',black:'#23483b',accent:'#21845d'},dark:{bg:'#111827',panel:'#202b3b',head1:'#080f1e',head2:'#344b70',board:'#273449',black:'#080f1e',accent:'#5b8cff'}};applyDesign(presets[b.dataset.preset]);$('designStatus').textContent='Намуна интихоб шуд. Барои нигоҳ доштан «Сабти дизайн»-ро пахш кунед.'});
+$('questionDisplay').addEventListener('change',saveQuestionDisplay);$('clueFontSize').addEventListener('change',saveQuestionDisplay);$('clueTextColor').addEventListener('input',saveQuestionDisplay);try{let qd=JSON.parse(localStorage.getItem('skanvordQuestionDisplayTg')||'null');if(qd){questionDisplay=qd.questionDisplay||'below';clueFontSize=qd.clueFontSize||'6';clueTextColor=qd.clueTextColor||'#ffffff';}}catch(e){}applyQuestionDisplay();
+try{let stored=JSON.parse(localStorage.getItem('skanvordDesignTg')||'null');if(stored){customBackgroundImage=stored.backgroundImage||'';blackCellImage=stored.blackCellImage||'';sectionImages=stored.sectionImages||{header:'',panel:'',board:''};applyDesign(stored);}else applyDesign(designDefaults)}catch(e){applyDesign(designDefaults)}
+
+// QR-код барои кушодани версияи интернетии барнома дар телефони донишҷӯ
+let studentQrUrl='';
+function makeStudentQr(){
+ const field=$('studentAppUrl'), raw=field.value.trim();
+ if(!raw){alert('Аввал пайванди интернетии барномаро ворид кунед.');field.focus();return;}
+ let parsed;try{parsed=new URL(raw)}catch(e){alert('Пайванд нодуруст аст. Он бояд бо https:// ё http:// оғоз шавад.');return;}
+ if(!['http:','https:'].includes(parsed.protocol)){alert('Барои донишҷӯён пайванди http ё https лозим аст.');return;}
+ parsed.hash='student';
+ studentQrUrl=parsed.toString();
+ const area=$('studentQrArea');
+ const img=document.createElement('img');
+ img.alt='QR-коди воридшавӣ ба сканворд';
+ img.width=250;img.height=250;img.style.cssText='display:block;max-width:100%;height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
+ img.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=12&data='+encodeURIComponent(studentQrUrl);
+ img.onerror=()=>{area.textContent='QR-код сохта нашуд. Интернетро санҷед ё пайвандро аз нав ворид кунед.'};
+ const caption=document.createElement('div');caption.textContent='Донишҷӯён ин QR-кодро бо камераи телефон скан кунанд.';
+ const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent=studentQrUrl;
+ area.replaceChildren(img,caption,link);
+ $('openStudentQr').disabled=false;
+}
+$('makeStudentQr').addEventListener('click',makeStudentQr);
+$('copyStudentUrl').addEventListener('click',()=>{const v=$('studentAppUrl').value.trim();if(!v){alert('Аввал пайвандро ворид кунед.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(()=>$('studentQrArea').textContent='Пайванд нусхабардорӣ шуд.').catch(()=>alert('Нусхабардорӣ дастрас нест.'));}else{ $('studentAppUrl').select();document.execCommand('copy');alert('Пайванд нусхабардорӣ шуд.');}});
+$('openStudentQr').addEventListener('click',()=>{if(studentQrUrl)window.open('https://api.qrserver.com/v1/create-qr-code/?size=700x700&margin=20&data='+encodeURIComponent(studentQrUrl),'_blank','noopener');});
+if(/^https?:$/.test(location.protocol)){ $('studentAppUrl').value=location.href.split('#')[0]; }
+
+</script>
+</body></html>
