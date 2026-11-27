@@ -189,8 +189,9 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <h2>Панели донишҷӯ</h2>
 <label class="hint" for="studentName">Ному насаб</label><input id="studentName" placeholder="Масалан: Аҳмадов Али">
 <div class="actions"><button class="secondary" id="openStudentFile">Кушодани супориш</button><input id="studentFileInput" type="file" accept=".json,application/json" hidden></div>
- <div class="actions"><button type="button" id="scanStudentQr">📷 Кушодани супориш бо QR-код</button><button type="button" class="secondary" id="stopStudentQr" hidden>Бастани камера</button></div>
- <div id="studentQrReader" class="status" style="display:none;text-align:center"><div id="qrReader" style="width:100%;max-width:420px;margin:auto"></div><p class="hint">Камераро ба QR-коди омӯзгор равона кунед.</p></div>
+ <div class="actions"><button type="button" id="scanStudentQr">📷 Скан бо камера</button><button type="button" class="secondary" id="readQrImage">QR аз расм / файл</button><input id="qrImageInput" type="file" accept="image/*" hidden><button type="button" class="secondary" id="stopStudentQr" hidden>Бастани камера</button></div>
+ <div id="studentQrReader" class="status" style="display:none;text-align:center"><div id="qrReader" style="width:100%;max-width:420px;margin:auto"></div><p class="hint">Камераро ба QR-коди омӯзгор равона кунед. Дар iPhone Safari ва дигар браузерҳои муосир низ аз камера истифода бурдан мумкин аст, агар саҳифа бо HTTPS кушода шавад.</p></div>
+ <p class="hint">Агар QR-код дар худи телефон ё компютер ҳамчун расм нигоҳ дошта шуда бошад, «QR аз расм / файл»-ро пахш карда, ҳамон расмро интихоб кунед.</p>
 <div class="status" id="studentStatus">Муаллим бояд файли супоришро диҳад. Дар ин панел ҷавобҳои дуруст нишон дода намешаванд.</div>
 <hr>
 <div class="row"><div><span class="hint">Вақти боқимонда</span><div class="timer" id="timer">10:00</div></div><div><span class="hint">Пешрафт</span><div class="timer" id="progress">0%</div></div></div>
@@ -571,9 +572,26 @@ let studentQrScanner=null;
     }catch(err){alert(err.message||'QR-код хонда нашуд.');}
    },()=>{});
   }catch(err){
-   box.style.display='block';box.insertAdjacentHTML('beforeend','<p style="color:#b42318">Камера кушода нашуд: '+String(err.message||err).replace(/[<>]/g,'')+'. Иҷозати камераро диҳед ва саҳифаро бо Chrome кушоед.</p>');
+   box.style.display='block';box.insertAdjacentHTML('beforeend','<p style="color:#b42318">Камера кушода нашуд: '+String(err.message||err).replace(/[<>]/g,'')+'. Иҷозати камераро диҳед ва саҳифаро бо браузери муосир (Chrome, Safari, Firefox ё Edge) кушоед. Барои камера HTTPS лозим аст.</p>');
    btn.disabled=false;stop.hidden=true;
   }
+ };
+ $('readQrImage').onclick=()=>$('qrImageInput').click();
+ $('qrImageInput').onchange=async e=>{
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  const box=$('studentQrReader');box.style.display='block';
+  try{
+   if(!window.Html5Qrcode){
+    await new Promise((resolve,reject)=>{
+     const sc=document.createElement('script');sc.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';sc.onload=resolve;sc.onerror=()=>reject(Error('Китобхонаи хондани QR аз интернет бор нашуд.'));document.head.appendChild(sc);
+    });
+   }
+   const reader=new Html5Qrcode('qrReader');
+   const decoded=await reader.scanFile(file,true);
+   if(!decoded.startsWith('https://')&&!decoded.startsWith('http://'))throw Error('Дар расми интихобшуда пайванди QR-коди супориш ёфт нашуд.');
+   location.href=decoded;
+  }catch(err){alert('QR аз расм хонда нашуд: '+(err.message||err)+'. Расми равшантар интихоб кунед.');}
+  finally{e.target.value='';}
  };
  $('stopStudentQr').onclick=async()=>{
   if(studentQrScanner){try{await studentQrScanner.stop();studentQrScanner.clear()}catch(e){}studentQrScanner=null;}
