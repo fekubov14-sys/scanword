@@ -540,7 +540,7 @@ let studentQrScanner=null;
    await studentQrScanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:250}},async decodedText=>{
     try{
      await studentQrScanner.stop();studentQrScanner.clear();studentQrScanner=null;
-     if(!/^https?:\\/\\//i.test(decodedText))throw Error('QR-код пайванди интернетӣ надорад.');
+     if(!decodedText.startsWith('https://')&&!decodedText.startsWith('http://'))throw Error('QR-код пайванди интернетӣ надорад.');
      location.href=decodedText;
     }catch(err){alert(err.message||'QR-код хонда шуд, аммо супориш кушода нашуд.');}
    },()=>{});
