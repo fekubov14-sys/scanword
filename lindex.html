@@ -653,7 +653,7 @@ if(/^https?:$/.test(location.protocol))$('studentAppUrl').value=location.href.sp
 (async function openHostedTaskFile(){
  const params=new URLSearchParams(location.search),file=params.get('taskfile');if(!file)return;
  try{
-  if(!/^tasks\\/[A-Za-z0-9_-]+\\.json$/.test(file))throw Error('Пайванди файли супориш нодуруст аст.');
+  if(!file.startsWith('tasks/')||!file.endsWith('.json')||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
   const response=await fetch(file);if(!response.ok)throw Error('Файли супориш дар сервер ёфт нашуд.');
   const data=await response.json();
   $('teacherScreen').classList.add('hidden');$('studentScreen').classList.remove('hidden');
