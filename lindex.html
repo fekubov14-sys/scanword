@@ -186,6 +186,8 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <h2>Панели донишҷӯ</h2>
 <label class="hint" for="studentName">Ному насаб</label><input id="studentName" placeholder="Масалан: Аҳмадов Али">
 <div class="actions"><button class="secondary" id="openStudentFile">Кушодани супориш</button><input id="studentFileInput" type="file" accept=".json,application/json" hidden></div>
+ <div class="actions"><button type="button" id="scanStudentQr">📷 Кушодани супориш бо QR-код</button><button type="button" class="secondary" id="stopStudentQr" hidden>Бастани камера</button></div>
+ <div id="studentQrReader" class="status" style="display:none;text-align:center"><div id="qrReader" style="width:100%;max-width:420px;margin:auto"></div><p class="hint">Камераро ба QR-коди омӯзгор равона кунед.</p></div>
 <div class="status" id="studentStatus">Муаллим бояд файли супоришро диҳад. Дар ин панел ҷавобҳои дуруст нишон дода намешаванд.</div>
 <hr>
 <div class="row"><div><span class="hint">Вақти боқимонда</span><div class="timer" id="timer">10:00</div></div><div><span class="hint">Пешрафт</span><div class="timer" id="progress">0%</div></div></div>
@@ -524,7 +526,34 @@ $('fileInput').onchange=async e=>{
  }catch(err){alert('Файл кушода нашуд: '+err.message)}
  e.target.value='';
 };
-$('openStudentFile').onclick=()=>$('studentFileInput').click();
+let studentQrScanner=null;
+ $('scanStudentQr').onclick=async()=>{
+  const box=$('studentQrReader'),stop=$('stopStudentQr'),btn=$('scanStudentQr');
+  box.style.display='block';stop.hidden=false;btn.disabled=true;
+  try{
+   if(!window.Html5Qrcode){
+    await new Promise((resolve,reject)=>{
+     const s=document.createElement('script');s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';s.onload=resolve;s.onerror=()=>reject(Error('Барномаи хондани QR аз интернет бор нашуд.'));document.head.appendChild(s);
+    });
+   }
+   studentQrScanner=new Html5Qrcode('qrReader');
+   await studentQrScanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:250}},async decodedText=>{
+    try{
+     await studentQrScanner.stop();studentQrScanner.clear();studentQrScanner=null;
+     if(!/^https?:\\/\\//i.test(decodedText))throw Error('QR-код пайванди интернетӣ надорад.');
+     location.href=decodedText;
+    }catch(err){alert(err.message||'QR-код хонда шуд, аммо супориш кушода нашуд.');}
+   },()=>{});
+  }catch(err){
+   box.style.display='block';box.insertAdjacentHTML('beforeend','<p style="color:#b42318">Камера кушода нашуд: '+String(err.message||err).replace(/[<>]/g,'')+'. Иҷозати камераро диҳед ва саҳифаро бо Chrome кушоед.</p>');
+   btn.disabled=false;stop.hidden=true;
+  }
+ };
+ $('stopStudentQr').onclick=async()=>{
+  if(studentQrScanner){try{await studentQrScanner.stop();studentQrScanner.clear()}catch(e){}studentQrScanner=null;}
+  $('studentQrReader').style.display='none';$('stopStudentQr').hidden=true;$('scanStudentQr').disabled=false;
+ };
+ $('openStudentFile').onclick=()=>$('studentFileInput').click();
 $('studentFileInput').onchange=async e=>{try{loadStudentPuzzle(JSON.parse(await e.target.files[0].text()))}catch(err){alert('Ин файли супориши донишҷӯ нест ё вайрон шудааст.')}e.target.value=''};
 // Панели муаллим бо рамзи махфӣ муҳофизат мешавад.
 let teacherUnlocked=false;
