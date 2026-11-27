@@ -159,8 +159,8 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <div id="resultsList" class="hint">Ҳоло натиҷа сабт нашудааст.</div>
 <hr>
 <h2>📱 QR-код барои донишҷӯён</h2>
-<p class="hint">Пайванди интернетии барномаро ворид кунед. Донишҷӯён QR-кодро скан карда, бевосита ба панели донишҷӯ медароянд.</p>
-<label class="hint" for="studentAppUrl">Пайванди барнома (URL)</label>
+<p class="hint">QR-коди махсуси ҳамин супоришро созед. Донишҷӯ пас аз скан кардан супориши шуморо мустақим мекушояд.</p>
+<label class="hint" for="studentAppUrl">Суроғаи барнома (URL)</label>
 <input id="studentAppUrl" type="url" placeholder="https://username.github.io/skanvord/">
 <div class="actions">
 <button type="button" id="makeStudentQr">Сохтани QR-код</button>
@@ -170,7 +170,7 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <div id="studentQrArea" class="status" style="text-align:center">
 <p>Пас аз ворид кардани пайванди дастрас аз интернет, тугмаи «Сохтани QR-код»-ро пахш кунед.</p>
 </div>
-<p class="hint">Муҳим: QR-код худи файлро ба телефон намефиристад. Аввал файли HTML-ро дар хостинг (масалан GitHub Pages) ҷойгир кунед. Ҳамаи донишҷӯён бояд аз пайванди ягона истифода баранд. Барои сохтани QR интернет лозим аст.</p>
+<p class="hint">QR-код барои ҳар як супориш алоҳида сохта мешавад. Агар супориш расмҳои калон дошта бошад, барои сабук кардани QR расмҳои саволҳо ва расмҳои ороишӣ ба донишҷӯ фиристода намешаванд; матн ва ҷавобҳо нигоҳ дошта мешаванд.</p>
 </aside>
 <section class="panel">
 <div class="boardHead"><h2>Пешнамоиши муаллим</h2><span class="hint" id="teacherDimensions"></span></div>
@@ -624,23 +624,28 @@ async function encodeStudentData(data){
  return 'gz.'+btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 async function makeStudentQr(){
- const field=$('studentAppUrl'),raw=field.value.trim();
- if(!raw){alert('Аввал пайванди интернетии барномаро ворид кунед.');field.focus();return;}
- let parsed;try{parsed=new URL(raw)}catch(e){alert('Пайванд нодуруст аст.');return;}
- if(!['http:','https:'].includes(parsed.protocol)){alert('Пайванди http ё https лозим аст.');return;}
- let payload;try{payload=getStudentPayload()}catch(e){alert(e.message);return;}
- const area=$('studentQrArea');area.textContent='Маълумоти сканворд фишурда шуда истодааст…';
- try{
-  const encoded=await encodeStudentData(payload);
-  studentQrUrl=parsed.origin+parsed.pathname+'#task='+encoded;
-  const img=document.createElement('img');img.alt='QR-коди супориши сканворд';img.style.cssText='display:block;max-width:100%;height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
-  img.src='https://api.qrserver.com/v1/create-qr-code/?size=800x800&margin=12&data='+encodeURIComponent(studentQrUrl);
-  img.onerror=()=>{area.textContent='QR-код сохта нашуд. Ҳаҷми маълумот ҳанӯз калон аст; расмҳои заминавиро аз тарҳи сканворд хориҷ кунед.'};
-  const caption=document.createElement('div');caption.textContent='QR-коди супориш омода аст. Донишҷӯ онро скан кунад — супориш худкор кушода мешавад.';
-  const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent='Пайванди супориш омода аст.';
-  area.replaceChildren(img,caption,link);$('openStudentQr').disabled=false;
- }catch(e){area.textContent=e.message||'QR-код сохта нашуд.';}
-}
+  const field=$('studentAppUrl'),raw=field.value.trim();
+  if(!raw){alert('Аввал пайванди интернетии барномаро ворид кунед.');field.focus();return;}
+  let parsed;try{parsed=new URL(raw)}catch(e){alert('Пайванд нодуруст аст.');return;}
+  if(!['http:','https:'].includes(parsed.protocol)){alert('Пайванди http ё https лозим аст.');return;}
+  let payload;try{payload=getStudentPayload()}catch(e){alert(e.message);return;}
+  const area=$('studentQrArea');area.textContent='Маълумоти супориш омода шуда истодааст…';
+  try{
+   let encoded=await encodeStudentData(payload),imagesRemoved=false;
+   if(encoded.length>2200){
+    const compact={...payload,entries:payload.entries.map(e=>({...e,image:''})),design:{...payload.design,backgroundImage:'',blackCellImage:'',sectionImages:{header:'',panel:'',board:''}}};
+    encoded=await encodeStudentData(compact);imagesRemoved=true;
+   }
+   if(encoded.length>2900)throw Error('Матни супориш ҳамоно хеле калон аст. Шумораи саволҳоро кам карда, боз кӯшиш кунед.');
+   studentQrUrl=parsed.origin+parsed.pathname+'#task='+encoded;
+   const img=document.createElement('img');img.alt='QR-коди супориши сканворд';img.style.cssText='display:block;max-width:100%;height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
+   img.onerror=()=>{img.onerror=()=>{area.textContent='QR-код аз хизматрасонии интернетӣ дастрас нашуд. Интернетро санҷед ва дубора пахш кунед.'};img.src='https://api.qrserver.com/v1/create-qr-code/?size=700x700&margin=10&data='+encodeURIComponent(studentQrUrl)};
+   img.src='https://quickchart.io/qr?size=700&margin=2&text='+encodeURIComponent(studentQrUrl);
+   const caption=document.createElement('div');caption.textContent=imagesRemoved?'QR-коди супориш омода аст. Расмҳои саволҳо барои хурд кардани QR хориҷ шуданд; матн ва ҷавобҳо нигоҳ дошта шуданд.':'QR-коди супориш омода аст. Донишҷӯ онро скан кунад — супориш худкор кушода мешавад.';
+   const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent='Пайванди супориши махсус омода аст.';
+   area.replaceChildren(img,caption,link);$('openStudentQr').disabled=false;
+  }catch(e){area.textContent=e.message||'QR-код сохта нашуд.';}
+ }
 $('makeStudentQr').addEventListener('click',makeStudentQr);
 $('copyStudentUrl').addEventListener('click',()=>{if(!studentQrUrl){alert('Аввал сканвордро созед ва QR-кодро омода кунед.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(studentQrUrl).then(()=>alert('Пайванди супориш нусхабардорӣ шуд.')).catch(()=>alert('Нусхабардорӣ дастрас нест.'));}else{const t=document.createElement('textarea');t.value=studentQrUrl;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();alert('Пайванд нусхабардорӣ шуд.');}});
 $('openStudentQr').addEventListener('click',()=>{if(studentQrUrl)window.open('https://api.qrserver.com/v1/create-qr-code/?size=900x900&margin=20&data='+encodeURIComponent(studentQrUrl),'_blank','noopener');});
