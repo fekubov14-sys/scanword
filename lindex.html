@@ -254,12 +254,15 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <script>
 const $=id=>document.getElementById(id), alphabet=[...'АБВГҒДЕЁЖЗӢИЙКҚЛМНОПРСТУӮФХҲЧҶШЪЭЮЯ'];
 const nativeLetterInput=$('nativeLetterInput');
-function focusNativeLetterInput(){if(!started||finished||!selected)return;const cell=document.querySelector('#studentBoard .cell.active');if(cell){const r=cell.getBoundingClientRect();nativeLetterInput.style.left=Math.round(r.left)+'px';nativeLetterInput.style.top=Math.round(r.top)+'px';nativeLetterInput.style.width=Math.max(2,Math.round(r.width))+'px';nativeLetterInput.style.height=Math.max(2,Math.round(r.height))+'px';}if(document.activeElement===nativeLetterInput)nativeLetterInput.blur();try{nativeLetterInput.focus({preventScroll:true})}catch(e){nativeLetterInput.focus()}}
+function focusNativeLetterInput(){if(!started||finished||!selected)return;positionNativeLetterInput();if(document.activeElement===nativeLetterInput)nativeLetterInput.blur();try{nativeLetterInput.focus({preventScroll:true})}catch(e){nativeLetterInput.focus()}}
 let entryImages={},entries=[],cells={},placements=[],selected=null,direction='across',numbers={},checked=false,started=false,finished=false,timerId=null,secondsLeft=600,limitMinutes=10;
 // Ҳарфҳо, рақамҳо ва аломатҳои махсус нигоҳ дошта мешаванд; танҳо фосилаҳо хориҷ мешаванд.
 const clean=s=>String(s??'').toLocaleUpperCase('tg').replace(/\s+/gu,'');
 const normalizeQuestionText=s=>String(s||'').replace(/\\r?\\n/g,'\n').replace(/\r\n?/g,'\n');
 const key=(r,c)=>r+','+c, get=(r,c)=>cells[key(r,c)];
+let studentLetterNodes={};
+function updateStudentActiveCell(){const board=$('studentBoard');board.querySelectorAll('.cell[data-r]').forEach(el=>el.classList.toggle('active',!!selected&&Number(el.dataset.r)===selected.r&&Number(el.dataset.c)===selected.c));positionNativeLetterInput()}
+function positionNativeLetterInput(){if(!selected)return;const cell=$(`#studentBoard .cell[data-r="${selected.r}"][data-c="${selected.c}"]`);if(!cell)return;const r=cell.getBoundingClientRect();nativeLetterInput.style.left=Math.round(r.left)+'px';nativeLetterInput.style.top=Math.round(r.top)+'px';nativeLetterInput.style.width=Math.max(2,Math.round(r.width))+'px';nativeLetterInput.style.height=Math.max(2,Math.round(r.height))+'px'}
 // Ҷудокунии ҷавоб аз савол танҳо аз рӯи аломати ҷудокунандаи " | " анҷом мешавад.
 // Аз ин рӯ аломати | метавонад дар дохили худи ҷавоб ё савол низ истифода шавад.
 function splitEntryLine(line){
@@ -364,7 +367,7 @@ function makeClueCell(p,mode){
  return b;
 }
 function buildGrid(target,mode){
- if(!placements.length)return;let{rows,cols}=bounds();$(mode+'Dimensions').textContent=`${rows} × ${cols}`;
+ if(!placements.length)return;if(mode==='student')studentLetterNodes={};let{rows,cols}=bounds();$(mode+'Dimensions').textContent=`${rows} × ${cols}`;
  let grid=document.createElement('div');grid.className='grid';
  // Савол дар ҳуҷайраи бастаи бевосита ПЕШИ оғози ҷавоб ҷойгир мешавад:
  // барои ҷавоби уфуқӣ — аз чап, барои ҷавоби амудӣ — аз боло.
@@ -384,7 +387,7 @@ function buildGrid(target,mode){
   if(d){
    if(numbers[key(r,c)]){let n=document.createElement('span');n.className='num';n.textContent=numbers[key(r,c)];b.append(n)}
    let v=document.createElement('span');v.textContent=mode==='teacher'?d.ch:(d.value||'');b.append(v);
-   if(mode==='student'){b.setAttribute('aria-label',`Ҳуҷайра ${r+1}, ${c+1}`);b.onmousedown=ev=>ev.preventDefault();if(selected&&selected.r===r&&selected.c===c)b.classList.add('active');if(started&&!finished)b.onclick=()=>{selectCell(r,c);focusNativeLetterInput()}}
+   if(mode==='student'){b.dataset.r=r;b.dataset.c=c;studentLetterNodes[key(r,c)]=v;b.setAttribute('aria-label',`Ҳуҷайра ${r+1}, ${c+1}`);b.onmousedown=ev=>ev.preventDefault();if(selected&&selected.r===r&&selected.c===c)b.classList.add('active');if(started&&!finished)b.onclick=()=>{selectCell(r,c);focusNativeLetterInput()}}
    if(fallbackAt[key(r,c)]){let badge=document.createElement('span');badge.className='clueSideBadge';badge.textContent=fallbackAt[key(r,c)].num+'.';badge.title='Саволро кушоед';badge.onclick=ev=>{ev.stopPropagation();let p=fallbackAt[key(r,c)];showFullClue(p.num,entries[p.idx].clue,entries[p.idx].image||'')};b.append(badge)}
   }else if(clueAt[key(r,c)]){b=makeClueCell(clueAt[key(r,c)],mode)}
   grid.append(b);
@@ -400,8 +403,8 @@ function renderStudent(){const pageX=window.scrollX,pageY=window.scrollY,wrap=$(
 function renderAnswerKey(){$('answerKey').innerHTML=entries.map((e,i)=>`<div><b>${i+1}. ${escapeHtml(e.word)}</b> — ${escapeHtml(e.clue)}</div>`).join('')}
 function selectCell(r,c){let d=get(r,c);if(!d)return;if(selected&&selected.r===r&&selected.c===c){let other=direction==='across'?'down':'across';if(d.words.some(i=>placements.find(p=>p.idx===i)?.dir===other))direction=other}else{selected={r,c};if(!placements.some(p=>p.dir===direction&&p.r===r&&p.c===c)){let p=placements.find(p=>p.r===r&&p.c===c);if(p)direction=p.dir}}renderStudent()}
 function activePlacement(){if(!selected)return null;return placements.find(p=>{let len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0;return p.dir===direction&&selected.r>=p.r&&selected.c>=p.c&&selected.r<p.r+dr*len+(dr?0:1)&&selected.c<p.c+dc*len+(dc?0:1)})}
-function typeLetter(ch){if(!started||finished||!selected||!get(selected.r,selected.c))return;get(selected.r,selected.c).value=ch;let p=activePlacement();if(p){let len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,i=(selected.r-p.r)*dr+(selected.c-p.c)*dc;for(let j=i+1;j<len;j++){let r=p.r+dr*j,c=p.c+dc*j;if(get(r,c)){selected={r,c};break}}}renderStudent();updateProgress()}
-function erase(){if(!started||finished||!selected)return;get(selected.r,selected.c).value='';renderStudent();updateProgress()}
+function typeLetter(ch){if(!started||finished||!selected||!get(selected.r,selected.c))return;const writtenKey=key(selected.r,selected.c);get(selected.r,selected.c).value=ch;if(studentLetterNodes[writtenKey])studentLetterNodes[writtenKey].textContent=ch;let p=activePlacement();if(p){let len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,i=(selected.r-p.r)*dr+(selected.c-p.c)*dc;for(let j=i+1;j<len;j++){let r=p.r+dr*j,c=p.c+dc*j;if(get(r,c)){selected={r,c};break}}}updateStudentActiveCell();updateProgress()}
+function erase(){if(!started||finished||!selected)return;const erasedKey=key(selected.r,selected.c);get(selected.r,selected.c).value='';if(studentLetterNodes[erasedKey])studentLetterNodes[erasedKey].textContent='';updateStudentActiveCell();updateProgress()}
 function makeKeyboard(){let k=$('keyboard');k.innerHTML='';alphabet.forEach(ch=>{let b=document.createElement('button');b.textContent=ch;b.onclick=()=>typeLetter(ch);k.append(b)});let d=document.createElement('button');d.textContent='⌫';d.className='erase';d.onclick=erase;k.append(d)}
 function updateProgress(){let a=Object.values(cells),filled=a.filter(x=>x.value).length;$('filled').textContent=filled;$('total').textContent=a.length;$('progress').textContent=(a.length?Math.round(filled/a.length*100):0)+'%'}
 function formatTime(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
