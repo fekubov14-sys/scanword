@@ -661,14 +661,14 @@ async function makeStudentQr(){
   const area=$('studentQrArea');area.textContent='Маълумоти супориш омода шуда истодааст…';
   try{
    let encoded=await encodeStudentData(payload),imagesRemoved=false;
-   if(encoded.length>2200){
+   if(encoded.length>1500){
     const compact={...payload,entries:payload.entries.map(e=>({...e,image:''})),design:{...payload.design,backgroundImage:'',blackCellImage:'',sectionImages:{header:'',panel:'',board:''}}};
     encoded=await encodeStudentData(compact);imagesRemoved=true;
    }
-   if(encoded.length>2900)throw Error('Матни супориш ҳамоно хеле калон аст. Шумораи саволҳоро кам карда, боз кӯшиш кунед.');
+   if(encoded.length>1800)throw Error('Маълумоти сканворд барои QR-код зиёд аст. Шумораи саволҳоро кам кунед ё аз файли донишҷӯ истифода баред.');
    studentQrUrl=parsed.origin+parsed.pathname+'#task='+encoded;
    const img=document.createElement('img');img.alt='QR-коди супориши сканворд';img.style.cssText='display:block;max-width:100%;height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
-   img.onerror=()=>{img.onerror=()=>{area.textContent='QR-код аз хизматрасонии интернетӣ дастрас нашуд. Интернетро санҷед ва дубора пахш кунед.'};img.src='https://api.qrserver.com/v1/create-qr-code/?size=700x700&margin=10&data='+encodeURIComponent(studentQrUrl)};
+   img.onerror=()=>{img.onerror=()=>{studentQrUrl='';$('openStudentQr').disabled=true;area.textContent='QR-код сохта нашуд: маълумот барои хизматрасонии QR аз ҳад зиёд аст ё интернет дастрас нест. Шумораи саволҳоро кам карда, дубора кӯшиш кунед.'};img.src='https://api.qrserver.com/v1/create-qr-code/?size=700x700&margin=10&data='+encodeURIComponent(studentQrUrl)};
    img.src='https://quickchart.io/qr?size=700&margin=2&text='+encodeURIComponent(studentQrUrl);
    const caption=document.createElement('div');caption.textContent=imagesRemoved?'QR-коди супориш омода аст. Расмҳои саволҳо барои хурд кардани QR хориҷ шуданд; матн ва ҷавобҳо нигоҳ дошта шуданд.':'QR-коди супориш омода аст. Донишҷӯ онро скан кунад — супориш худкор кушода мешавад.';
    const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent='Пайванди супориши махсус омода аст.';
