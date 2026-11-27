@@ -262,7 +262,7 @@ const normalizeQuestionText=s=>String(s||'').replace(/\\r?\\n/g,'\n').replace(/\
 const key=(r,c)=>r+','+c, get=(r,c)=>cells[key(r,c)];
 let studentLetterNodes={};
 function updateStudentActiveCell(){const board=$('studentBoard');board.querySelectorAll('.cell[data-r]').forEach(el=>el.classList.toggle('active',!!selected&&Number(el.dataset.r)===selected.r&&Number(el.dataset.c)===selected.c));positionNativeLetterInput()}
-function positionNativeLetterInput(){if(!selected)return;const cell=$(`#studentBoard .cell[data-r="${selected.r}"][data-c="${selected.c}"]`);if(!cell)return;const r=cell.getBoundingClientRect();nativeLetterInput.style.left=Math.round(r.left)+'px';nativeLetterInput.style.top=Math.round(r.top)+'px';nativeLetterInput.style.width=Math.max(2,Math.round(r.width))+'px';nativeLetterInput.style.height=Math.max(2,Math.round(r.height))+'px'}
+function positionNativeLetterInput(){if(!selected)return;const cell=document.querySelector(`#studentBoard .cell[data-r="${selected.r}"][data-c="${selected.c}"]`);if(!cell)return;const r=cell.getBoundingClientRect();nativeLetterInput.style.left=Math.round(r.left)+'px';nativeLetterInput.style.top=Math.round(r.top)+'px';nativeLetterInput.style.width=Math.max(2,Math.round(r.width))+'px';nativeLetterInput.style.height=Math.max(2,Math.round(r.height))+'px'}
 // Ҷудокунии ҷавоб аз савол танҳо аз рӯи аломати ҷудокунандаи " | " анҷом мешавад.
 // Аз ин рӯ аломати | метавонад дар дохили худи ҷавоб ё савол низ истифода шавад.
 function splitEntryLine(line){
