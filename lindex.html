@@ -656,32 +656,10 @@ async function encodeStudentData(data){
  return 'gz.'+btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 let studentQrImageUrl='';
-async function loadQrGenerator(){
- if(window.QRCode&&typeof window.QRCode.toDataURL==='function')return;
- await new Promise((resolve,reject)=>{
-  const script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js';
-  script.onload=resolve;script.onerror=()=>reject(Error('Китобхонаи сохтани QR бор нашуд. Интернетро санҷед.'));
-  document.head.appendChild(script);
- });
- if(!window.QRCode||typeof window.QRCode.toDataURL!=='function')throw Error('Сохтани QR дар ин браузер дастрас нест.');
-}
-async function uploadStudentTask(payload,token){
- const content=JSON.stringify(payload);
- const bytes=new TextEncoder().encode(content);let binary='';
- for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
- const encoded=btoa(binary);
- const filename='tasks/suporish-'+Date.now()+'.json';
- const response=await fetch('https://api.github.com/repos/fekubov14-sys/scanword/contents/'+filename,{
-  method:'PUT',headers:{'Accept':'application/vnd.github+json','Authorization':'Bearer '+token,'X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'},
-  body:JSON.stringify({message:'Add student crossword task',content:encoded,branch:'main'})
- });
- if(!response.ok){let detail='';try{detail=(await response.json()).message||''}catch(e){};throw Error('Файл ба GitHub сабт нашуд ('+response.status+'). '+detail+' Санҷед, ки token иҷозати Contents: Read and write дорад.');}
- return filename;
-}
 async function makeStudentQr(){
  const field=$('studentAppUrl'),raw=field.value.trim(),token=$('githubUploadToken').value.trim();
  if(!raw){alert('Аввал пайванди интернетии барномаро ворид кунед.');field.focus();return;}
- if(!token){alert('Барои нигоҳ доштани супориши калон дар GitHub, token-и дорои иҷозати Contents: Read and write ворид кунед.');$('githubUploadToken').focus();return;}
+ if(!token){alert('Барои нигоҳ доштани супориш дар GitHub, аввал GitHub Token ворид кунед.');$('githubUploadToken').focus();return;}
  let parsed;try{parsed=new URL(raw)}catch(e){alert('Пайванд нодуруст аст.');return;}
  if(!['http:','https:'].includes(parsed.protocol)){alert('Пайванди http ё https лозим аст.');return;}
  let payload;try{payload=getStudentPayload()}catch(e){alert(e.message);return;}
@@ -690,19 +668,21 @@ async function makeStudentQr(){
  try{
   const filename=await uploadStudentTask(payload,token);
   const taskUrl=parsed.origin+parsed.pathname+'?taskfile='+encodeURIComponent(filename);
-  await loadQrGenerator();
   studentQrUrl=taskUrl;
-  studentQrImageUrl=await QRCode.toDataURL(taskUrl,{errorCorrectionLevel:'M',margin:3,width:800});
-  const img=document.createElement('img');img.alt='QR-коди супориши сканворд';img.src=studentQrImageUrl;
+  studentQrImageUrl='https://quickchart.io/qr?size=800&margin=3&ecLevel=M&text='+encodeURIComponent(taskUrl);
+  const img=document.createElement('img');img.alt='QR-коди супориши сканворд';
   img.style.cssText='display:block;width:min(100%,420px);height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
-  const caption=document.createElement('div');caption.textContent='QR-код омода шуд. Тамоми саволҳо ва танзимоти супориш дар GitHub нигоҳ дошта шуданд. Донишҷӯ бо скан кардани QR супоришро мекушояд.';
-  const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent='Файли супориш дар GitHub: '+filename;
-  area.replaceChildren(img,caption,link);$('openStudentQr').disabled=false;
+  img.onload=()=>{$('openStudentQr').disabled=false;};
+  img.onerror=()=>{studentQrUrl='';studentQrImageUrl='';$('openStudentQr').disabled=true;area.textContent='Файл ба GitHub сабт шуд, аммо расми QR аз хизматрасонии QR бор нашуд. Интернетро санҷед ва дубора QR созед.';};
+  img.src=studentQrImageUrl;
+  const caption=document.createElement('div');caption.textContent='Супориш дар GitHub нигоҳ дошта шуд. QR-код танҳо пайванди кӯтоҳи супоришро дар бар мегирад; шумораи саволҳо маҳдуд нест.';
+  const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent='Пайванди супориши махсус: '+taskUrl;
+  area.replaceChildren(img,caption,link);
  }catch(e){studentQrUrl='';studentQrImageUrl='';$('openStudentQr').disabled=true;area.textContent=(e&&e.message)||'Супориш сабт нашуд. Интернет ва иҷозати GitHub-ро санҷед.';}
 }
 $('makeStudentQr').addEventListener('click',makeStudentQr);
 $('copyStudentUrl').addEventListener('click',()=>{if(!studentQrUrl){alert('Аввал сканвордро созед ва QR-кодро омода кунед.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(studentQrUrl).then(()=>alert('Пайванди супориш нусхабардорӣ шуд.')).catch(()=>alert('Нусхабардорӣ дастрас нест.'));}else{const t=document.createElement('textarea');t.value=studentQrUrl;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();alert('Пайванд нусхабардорӣ шуд.');}});
-$('openStudentQr').addEventListener('click',()=>{if(studentQrImageUrl){const a=document.createElement('a');a.href=studentQrImageUrl;a.download='qr_skanvord.png';a.click();}});
+$('openStudentQr').addEventListener('click',()=>{if(studentQrImageUrl)window.open(studentQrImageUrl,'_blank','noopener');});
 if(/^https?:$/.test(location.protocol))$('studentAppUrl').value=location.href.split('#')[0];
 (async function openHostedTaskFile(){
  const params=new URLSearchParams(location.search),file=params.get('taskfile');if(!file)return;
