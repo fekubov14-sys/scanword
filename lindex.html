@@ -609,30 +609,47 @@ document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{let presets
 $('questionDisplay').addEventListener('change',saveQuestionDisplay);$('clueFontSize').addEventListener('change',saveQuestionDisplay);$('clueTextColor').addEventListener('input',saveQuestionDisplay);try{let qd=JSON.parse(localStorage.getItem('skanvordQuestionDisplayTg')||'null');if(qd){questionDisplay=qd.questionDisplay||'below';clueFontSize=qd.clueFontSize||'6';clueTextColor=qd.clueTextColor||'#ffffff';}}catch(e){}applyQuestionDisplay();
 try{let stored=JSON.parse(localStorage.getItem('skanvordDesignTg')||'null');if(stored){customBackgroundImage=stored.backgroundImage||'';blackCellImage=stored.blackCellImage||'';sectionImages=stored.sectionImages||{header:'',panel:'',board:''};applyDesign(stored);}else applyDesign(designDefaults)}catch(e){applyDesign(designDefaults)}
 
-// QR-код барои кушодани версияи интернетии барнома дар телефони донишҷӯ
+// QR-код бо худи супориши сохтаи муаллим
 let studentQrUrl='';
+function getStudentPayload(){
+ if(!entries.length||!placements.length||!Object.keys(cells).length)throw Error('Аввал сканвордро созед.');
+ let design=JSON.parse(localStorage.getItem('skanvordDesignTg')||'null');
+ return {format:'skanvord-student-v1',design:design||{...currentDesign(),backgroundImage:customBackgroundImage,blackCellImage,sectionImages},timeLimit:limitMinutes,questionDisplay:{questionDisplay,clueFontSize,clueTextColor},entries,placements:placements.map(p=>({idx:p.idx,r:p.r,c:p.c,dir:p.dir,num:p.num})),grid:Object.keys(cells).map(k=>{let[r,c]=k.split(',').map(Number);return{r,c,answer:cells[k].ch}})};
+}
+function encodeStudentData(data){
+ const bytes=new TextEncoder().encode(JSON.stringify(data));let binary='';
+ bytes.forEach(b=>binary+=String.fromCharCode(b));
+ return btoa(binary).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+}
 function makeStudentQr(){
- const field=$('studentAppUrl'), raw=field.value.trim();
+ const field=$('studentAppUrl'),raw=field.value.trim();
  if(!raw){alert('Аввал пайванди интернетии барномаро ворид кунед.');field.focus();return;}
- let parsed;try{parsed=new URL(raw)}catch(e){alert('Пайванд нодуруст аст. Он бояд бо https:// ё http:// оғоз шавад.');return;}
- if(!['http:','https:'].includes(parsed.protocol)){alert('Барои донишҷӯён пайванди http ё https лозим аст.');return;}
- parsed.hash='student';
- studentQrUrl=parsed.toString();
- const area=$('studentQrArea');
- const img=document.createElement('img');
- img.alt='QR-коди воридшавӣ ба сканворд';
- img.width=250;img.height=250;img.style.cssText='display:block;max-width:100%;height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
- img.src='https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=12&data='+encodeURIComponent(studentQrUrl);
- img.onerror=()=>{area.textContent='QR-код сохта нашуд. Интернетро санҷед ё пайвандро аз нав ворид кунед.'};
- const caption=document.createElement('div');caption.textContent='Донишҷӯён ин QR-кодро бо камераи телефон скан кунанд.';
- const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent=studentQrUrl;
- area.replaceChildren(img,caption,link);
- $('openStudentQr').disabled=false;
+ let parsed;try{parsed=new URL(raw)}catch(e){alert('Пайванд нодуруст аст.');return;}
+ if(!['http:','https:'].includes(parsed.protocol)){alert('Пайванди http ё https лозим аст.');return;}
+ let payload;try{payload=getStudentPayload()}catch(e){alert(e.message);return;}
+ const encoded=encodeStudentData(payload);
+ studentQrUrl=parsed.origin+parsed.pathname+'#task='+encoded;
+ const area=$('studentQrArea');area.replaceChildren();
+ const img=document.createElement('img');img.alt='QR-коди супориши сканворд';img.style.cssText='display:block;max-width:100%;height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
+ img.src='https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=12&data='+encodeURIComponent(studentQrUrl);
+ img.onerror=()=>{area.textContent='QR-код сохта нашуд. Эҳтимол супориш барои QR хеле калон аст. Расмҳои зиёдатиро кам кунед.'};
+ const caption=document.createElement('div');caption.textContent='Ин QR-код худи супориши сохташударо дар бар мегирад. Донишҷӯ скан кунад — супориш худкор кушода мешавад.';
+ const link=document.createElement('div');link.style.cssText='font-size:12px;overflow-wrap:anywhere;margin-top:8px';link.textContent='Пайванди супориш омода аст.';
+ area.append(img,caption,link);$('openStudentQr').disabled=false;
 }
 $('makeStudentQr').addEventListener('click',makeStudentQr);
-$('copyStudentUrl').addEventListener('click',()=>{const v=$('studentAppUrl').value.trim();if(!v){alert('Аввал пайвандро ворид кунед.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(v).then(()=>$('studentQrArea').textContent='Пайванд нусхабардорӣ шуд.').catch(()=>alert('Нусхабардорӣ дастрас нест.'));}else{ $('studentAppUrl').select();document.execCommand('copy');alert('Пайванд нусхабардорӣ шуд.');}});
-$('openStudentQr').addEventListener('click',()=>{if(studentQrUrl)window.open('https://api.qrserver.com/v1/create-qr-code/?size=700x700&margin=20&data='+encodeURIComponent(studentQrUrl),'_blank','noopener');});
-if(/^https?:$/.test(location.protocol)){ $('studentAppUrl').value=location.href.split('#')[0]; }
-
+$('copyStudentUrl').addEventListener('click',()=>{if(!studentQrUrl){alert('Аввал сканвордро созед ва QR-кодро омода кунед.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(studentQrUrl).then(()=>alert('Пайванди супориш нусхабардорӣ шуд.')).catch(()=>alert('Нусхабардорӣ дастрас нест.'));}else{const t=document.createElement('textarea');t.value=studentQrUrl;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();alert('Пайванд нусхабардорӣ шуд.');}});
+$('openStudentQr').addEventListener('click',()=>{if(studentQrUrl)window.open('https://api.qrserver.com/v1/create-qr-code/?size=900x900&margin=20&data='+encodeURIComponent(studentQrUrl),'_blank','noopener');});
+if(/^https?:$/.test(location.protocol))$('studentAppUrl').value=location.href.split('#')[0];
+(function openTaskFromQr(){
+ const match=location.hash.match(/^#task=([A-Za-z0-9_-]+)$/);if(!match)return;
+ try{
+  const b64=match[1].replace(/-/g,'+').replace(/_/g,'/');const binary=atob(b64);
+  const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));const data=JSON.parse(new TextDecoder().decode(bytes));
+  $('teacherScreen').classList.add('hidden');$('studentScreen').classList.remove('hidden');
+  $('designScreen').classList.add('hidden');$('teacherTab').classList.remove('active');$('studentTab').classList.add('active');$('designTab').classList.remove('active');
+  loadStudentPuzzle(data);
+ }catch(e){alert('Маълумоти QR-код хонда нашуд. Аз муаллим QR-коди нав талаб кунед.');}
+})();
 </script>
 </body></html>
