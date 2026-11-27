@@ -619,7 +619,7 @@ function getStudentPayload(){
 function encodeStudentData(data){
  const bytes=new TextEncoder().encode(JSON.stringify(data));let binary='';
  bytes.forEach(b=>binary+=String.fromCharCode(b));
- return btoa(binary).replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');
+ return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 }
 function makeStudentQr(){
  const field=$('studentAppUrl'),raw=field.value.trim();
