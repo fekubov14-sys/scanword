@@ -650,6 +650,17 @@ $('makeStudentQr').addEventListener('click',makeStudentQr);
 $('copyStudentUrl').addEventListener('click',()=>{if(!studentQrUrl){alert('Аввал сканвордро созед ва QR-кодро омода кунед.');return;}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(studentQrUrl).then(()=>alert('Пайванди супориш нусхабардорӣ шуд.')).catch(()=>alert('Нусхабардорӣ дастрас нест.'));}else{const t=document.createElement('textarea');t.value=studentQrUrl;document.body.appendChild(t);t.select();document.execCommand('copy');t.remove();alert('Пайванд нусхабардорӣ шуд.');}});
 $('openStudentQr').addEventListener('click',()=>{if(studentQrUrl)window.open('https://quickchart.io/qr?size=900&margin=2&text='+encodeURIComponent(studentQrUrl),'_blank','noopener');});
 if(/^https?:$/.test(location.protocol))$('studentAppUrl').value=location.href.split('#')[0];
+(async function openHostedTaskFile(){
+ const params=new URLSearchParams(location.search),file=params.get('taskfile');if(!file)return;
+ try{
+  if(!/^tasks\\/[A-Za-z0-9_-]+\\.json$/.test(file))throw Error('Пайванди файли супориш нодуруст аст.');
+  const response=await fetch(file);if(!response.ok)throw Error('Файли супориш дар сервер ёфт нашуд.');
+  const data=await response.json();
+  $('teacherScreen').classList.add('hidden');$('studentScreen').classList.remove('hidden');
+  $('designScreen').classList.add('hidden');$('teacherTab').classList.remove('active');$('studentTab').classList.add('active');$('designTab').classList.remove('active');
+  loadStudentPuzzle(data);
+ }catch(e){alert(e.message||'Файли супориш кушода нашуд.');}
+})();
 (async function openTaskFromQr(){
  const match=location.hash.match(/^#task=(gz\.)?([A-Za-z0-9_-]+)$/);if(!match)return;
  try{
