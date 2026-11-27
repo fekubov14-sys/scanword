@@ -539,7 +539,7 @@ let studentQrScanner=null;
    studentQrScanner=new Html5Qrcode('qrReader');
    await studentQrScanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:250}},async decodedText=>{
     try{
-     const m=decodedText.match(/^SKANPART\\|([A-Za-z0-9]+)\\|(\\d+)\\|(\\d+)\\|([A-Za-z0-9_.-]+)$/);
+     const m=decodedText.match(/^SKANPART\|([A-Za-z0-9]+)\|(\d+)\|(\d+)\|([A-Za-z0-9_.-]+)$/);
      if(m){
       const id=m[1],index=Number(m[2]),total=Number(m[3]),chunk=m[4];
       if(index<1||index>total||total>100)throw Error('Қисми QR нодуруст аст.');
