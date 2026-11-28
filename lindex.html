@@ -688,15 +688,24 @@ let studentQrScanner=null;
      if(found&&found.length)decoded=found[0].rawValue||'';
     }catch(nativeError){decoded='';}
    }
-   // Усули эҳтиётӣ: хондани мустақими пикселҳои расм бо jsQR.
+   // Усули эҳтиётӣ: хондани расм тавассути FileReader ва Image.
+   // Ин усул бо интихобгари файлҳои Android низ мувофиқ аст; createImageBitmap дар баъзе телефонҳо хато медиҳад.
    if(!decoded){
     await ensureJsQrLibrary();
-    const bitmap=await createImageBitmap(file);
+    const dataUrl=await new Promise((resolve,reject)=>{
+     const reader=new FileReader();
+     reader.onload=()=>resolve(reader.result);
+     reader.onerror=()=>reject(Error('Расми интихобшуда хонда нашуд. Расми PNG ё JPG-ро интихоб кунед.'));
+     reader.readAsDataURL(file);
+    });
+    const image=new Image();
+    image.src=dataUrl;
+    try{await image.decode();}catch(imageError){throw Error('Расми QR кушода нашуд. Лутфан файли аслии PNG ё JPG-ро интихоб кунед.');}
     const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
-    const scale=Math.min(1,1800/Math.max(bitmap.width,bitmap.height));
-    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
-    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+    const scale=Math.min(1,2200/Math.max(image.naturalWidth,image.naturalHeight));
+    canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+    canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+    ctx.drawImage(image,0,0,canvas.width,canvas.height);
     const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
     const result=jsQR(pixels.data,pixels.width,pixels.height,{inversionAttempts:'attemptBoth'});
     if(result)decoded=result.data||'';
