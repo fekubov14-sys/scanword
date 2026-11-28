@@ -167,17 +167,17 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <label class="hint" for="studentAppUrl">Суроғаи барнома (URL)</label>
 <input id="studentAppUrl" type="url" placeholder="https://username.github.io/scanword/lindex.html">
 <label class="hint" for="studentTaskFile">Роҳи файли супориши боршуда дар GitHub</label>
-<input id="studentTaskFile" type="text" value="M7.json" placeholder="M7.json ё tasks/M7.json">
-<p class="hint">Файли донишҷӯ метавонад дар ҷузвдони асосӣ ё дар ҷузвдони tasks-и GitHub бошад. Номи роҳро дар ин ҷо нависед. QR-код маълумоти худи сканвордро нигоҳ медорад; файли алоҳидаи JSON ё боркунӣ ба GitHub лозим нест.</p>
+<input id="studentTaskFile" type="text" value="tasks/M7.json" placeholder="tasks/M7.json">
+<p class="hint">Аввал файли донишҷӯро сабт карда, ба ҷузвдони tasks дар GitHub бор кунед. Баъд номи ҳамон файлро дар ин ҷо нависед. QR-код танҳо пайванди кӯтоҳро нигоҳ медорад, на тамоми маълумоти сканвордро.</p>
 <div class="actions">
 <button type="button" id="makeStudentQr">Сохтани QR-код</button>
 <button type="button" class="secondary" id="copyStudentUrl">Нусхабардории пайванд</button>
 <button type="button" class="secondary" id="openStudentQr" disabled>Кушодани QR-код</button>
 </div>
 <div id="studentQrArea" class="status" style="text-align:center">
-<p>Пас аз сохтани сканворд, тугмаи «Сохтани QR-код»-ро пахш кунед.</p>
+<p>Пас аз ворид кардани пайванди дастрас аз интернет, тугмаи «Сохтани QR-код»-ро пахш кунед.</p>
 </div>
-<p class="hint">QR-код барои ҳар як супориш алоҳида сохта мешавад. Барои сабук мондани QR, расмҳои саволҳо ва ороишӣ дохил намешаванд; матни саволҳо ва ҷавобҳо нигоҳ дошта мешаванд.</p>
+<p class="hint">QR-код барои ҳар як супориш алоҳида сохта мешавад. Агар супориш расмҳои калон дошта бошад, барои сабук кардани QR расмҳои саволҳо ва расмҳои ороишӣ ба донишҷӯ фиристода намешаванд; матн ва ҷавобҳо нигоҳ дошта мешаванд.</p>
 </aside>
 <section class="panel">
 <div class="boardHead"><h2>Пешнамоиши муаллим</h2><span class="hint" id="teacherDimensions"></span></div>
@@ -498,7 +498,7 @@ async function openStudentTaskLink(rawUrl){
  // QR метавонад аз камераи дохилӣ ё камераи телефони дигар кушода шавад.
  // Барои кушодани супориш танҳо мавҷудияти taskfile муҳим аст, на баробарии pathname.
  if(file){
-  if(!/^(?:tasks\/)?[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
+  if(!/^tasks\/[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
   const fileUrl=new URL(file,target.href);
   let response;
   try{response=await fetch(fileUrl.href,{cache:'no-store'});}
@@ -688,24 +688,15 @@ let studentQrScanner=null;
      if(found&&found.length)decoded=found[0].rawValue||'';
     }catch(nativeError){decoded='';}
    }
-   // Усули эҳтиётӣ: хондани расм тавассути FileReader ва Image.
-   // Ин усул бо интихобгари файлҳои Android низ мувофиқ аст; createImageBitmap дар баъзе телефонҳо хато медиҳад.
+   // Усули эҳтиётӣ: хондани мустақими пикселҳои расм бо jsQR.
    if(!decoded){
     await ensureJsQrLibrary();
-    const dataUrl=await new Promise((resolve,reject)=>{
-     const reader=new FileReader();
-     reader.onload=()=>resolve(reader.result);
-     reader.onerror=()=>reject(Error('Расми интихобшуда хонда нашуд. Расми PNG ё JPG-ро интихоб кунед.'));
-     reader.readAsDataURL(file);
-    });
-    const image=new Image();
-    image.src=dataUrl;
-    try{await image.decode();}catch(imageError){throw Error('Расми QR кушода нашуд. Лутфан файли аслии PNG ё JPG-ро интихоб кунед.');}
+    const bitmap=await createImageBitmap(file);
     const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
-    const scale=Math.min(1,2200/Math.max(image.naturalWidth,image.naturalHeight));
-    canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
-    canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
-    ctx.drawImage(image,0,0,canvas.width,canvas.height);
+    const scale=Math.min(1,1800/Math.max(bitmap.width,bitmap.height));
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
     const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
     const result=jsQR(pixels.data,pixels.width,pixels.height,{inversionAttempts:'attemptBoth'});
     if(result)decoded=result.data||'';
@@ -855,33 +846,34 @@ async function makeStudentQr(){
  if(!['http:','https:'].includes(page.protocol)){alert('Пайванди http ё https лозим аст.');return;}
  if(page.pathname.endsWith('/'))page.pathname+='lindex.html';
  else if(page.pathname.endsWith('/index.html'))page.pathname=page.pathname.slice(0,-'index.html'.length)+'lindex.html';
- const area=$('studentQrArea');area.textContent='Маълумоти сканворд омода мешавад…';
+ const file=$('studentTaskFile').value.trim();
+ if(!/^tasks\/[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..')){
+  alert('Роҳи файл нодуруст аст. Намуна: tasks/M7.json');$('studentTaskFile').focus();return;
+ }
+ const area=$('studentQrArea');area.textContent='Файли супориш санҷида мешавад…';
  studentQrUrl='';studentQrImageUrl='';$('openStudentQr').disabled=true;
  try{
-  // QR мустақиман маълумоти ҳамин сканворди сохташударо мебарад.
-  // Ба файли M7.json ва боркунии он ба GitHub вобаста нест.
-  const source=getStudentPayload();
-  const compact={
-   format:'skanvord-student-v1',
-   timeLimit:source.timeLimit,
-   questionDisplay:source.questionDisplay,
-   entries:source.entries.map(item=>({word:String(item.word||''),clue:String(item.clue||'')}))
-  };
-  const packed=await encodeStudentData(compact);
-  page.searchParams.delete('taskfile');
-  page.hash='task='+packed;
+  const fileUrl=new URL(file,page);
+  const response=await fetch(fileUrl.href,{cache:'no-store'});
+  if(!response.ok)throw Error('Файли '+file+' дар GitHub Pages ёфт нашуд. Аввал файли JSON-ро ба ҷузвдони tasks бор кунед.');
+  const data=await response.json();
+  if(!data||data.format!=='skanvord-student-v1'||!Array.isArray(data.entries)||!Array.isArray(data.placements)||!Array.isArray(data.grid)){
+   throw Error('Файли интихобшуда формати дурусти супориши донишҷӯро надорад.');
+  }
+  page.searchParams.set('taskfile',file);
+  page.hash='';
   studentQrUrl=page.toString();
   await ensureLocalQrLibrary();
   const qrBox=document.createElement('div');
-  new QRCode(qrBox,{text:studentQrUrl,width:900,height:900,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L});
+  new QRCode(qrBox,{text:studentQrUrl,width:900,height:900,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
   const canvas=qrBox.querySelector('canvas');
   if(!canvas)throw Error('QR-код сохта нашуд. Лутфан бори дигар кӯшиш кунед.');
   studentQrImageUrl=canvas.toDataURL('image/png');
-  const img=document.createElement('img');img.alt='QR-коди супориши сканворд';
+  const img=document.createElement('img');img.alt='QR-коди пайванди супориши сканворд';
   img.style.cssText='display:block;width:min(100%,420px);height:auto;margin:10px auto;background:white;padding:8px;border-radius:10px';
   img.src=studentQrImageUrl;
   const caption=document.createElement('div');
-  caption.textContent='QR-коди худи супориш омода шуд. Донишҷӯ онро скан карда, ҳамин сканвордро мустақим мекушояд. Файли алоҳидаи JSON ё боркунӣ ба GitHub лозим нест.';
+  caption.textContent='QR-коди кӯтоҳ омода шуд. Донишҷӯ онро скан карда, файли '+file+'-ро мустақим мекушояд.';
   area.replaceChildren(img,caption);
   $('openStudentQr').disabled=false;
  }catch(e){
