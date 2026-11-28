@@ -498,7 +498,7 @@ async function openStudentTaskLink(rawUrl){
  // QR метавонад аз камераи дохилӣ ё камераи телефони дигар кушода шавад.
  // Барои кушодани супориш танҳо мавҷудияти taskfile муҳим аст, на баробарии pathname.
  if(file){
-  if(!/^tasks\/[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
+  if(!/^(?:tasks\/)?[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
   const fileUrl=new URL(file,target.href);
   let response;
   try{response=await fetch(fileUrl.href,{cache:'no-store'});}
@@ -847,7 +847,7 @@ async function makeStudentQr(){
  if(page.pathname.endsWith('/'))page.pathname+='lindex.html';
  else if(page.pathname.endsWith('/index.html'))page.pathname=page.pathname.slice(0,-'index.html'.length)+'lindex.html';
  const file=$('studentTaskFile').value.trim();
- if(!/^tasks\/[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..')){
+ if(!/^(?:tasks\/)?[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..')){
   alert('Роҳи файл нодуруст аст. Намуна: M7.json ё tasks/M7.json');$('studentTaskFile').focus();return;
  }
  const area=$('studentQrArea');area.textContent='Файли супориш санҷида мешавад…';
