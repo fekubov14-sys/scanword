@@ -535,9 +535,21 @@ $('fileInput').onchange=async e=>{
  e.target.value='';
 };
 let studentQrScanner=null;
+ async function stopQrCameraSafely(){
+  const scanner=studentQrScanner;
+  studentQrScanner=null;
+  if(scanner){
+   try{await scanner.stop();}catch(e){}
+   try{scanner.clear();}catch(e){}
+  }
+  $('studentQrReader').style.display='none';
+  $('stopStudentQr').hidden=true;
+  $('scanStudentQr').disabled=false;
+ }
  $('scanStudentQr').onclick=async()=>{
   const box=$('studentQrReader'),stop=$('stopStudentQr'),btn=$('scanStudentQr');
   box.style.display='block';stop.hidden=false;btn.disabled=true;
+  let qrLinkOpening=false;
   try{
    if(!window.Html5Qrcode){
     await new Promise((resolve,reject)=>{
@@ -556,7 +568,7 @@ let studentQrScanner=null;
       const count=Object.keys(pack.parts).length;
       box.querySelector('p.hint').textContent='Қисмҳои қабулшуда: '+count+' аз '+total+'. QR-кодҳои боқимондаро скан кунед.';
       if(count===total){
-       await studentQrScanner.stop();studentQrScanner.clear();studentQrScanner=null;
+       await stopQrCameraSafely();
        const encoded=Array.from({length:total},(_,n)=>pack.parts[n+1]).join('');
        const b64=encoded.slice(3).replace(/-/g,'+').replace(/_/g,'/');
        const binary=atob(b64),bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
@@ -572,7 +584,10 @@ let studentQrScanner=null;
       return;
      }
      if(!decodedText.startsWith('https://')&&!decodedText.startsWith('http://'))throw Error('QR-код пайванди интернетӣ ё қисми супориш нест.');
-     await studentQrScanner.stop();studentQrScanner.clear();studentQrScanner=null;await openStudentTaskLink(decodedText);
+     if(qrLinkOpening)return;
+     qrLinkOpening=true;
+     await stopQrCameraSafely();
+     await openStudentTaskLink(decodedText);
     }catch(err){alert(err.message||'QR-код хонда нашуд.');}
    },()=>{});
   }catch(err){
@@ -619,10 +634,7 @@ let studentQrScanner=null;
    alert('QR аз расм хонда нашуд: '+(message||'QR-код дар расм ёфт нашуд. Расми равшантарро интихоб кунед.'));
   }finally{e.target.value='';}
  };
- $('stopStudentQr').onclick=async()=>{
-  if(studentQrScanner){try{await studentQrScanner.stop();studentQrScanner.clear()}catch(e){}studentQrScanner=null;}
-  $('studentQrReader').style.display='none';$('stopStudentQr').hidden=true;$('scanStudentQr').disabled=false;
- };
+ $('stopStudentQr').onclick=async()=>{await stopQrCameraSafely();};
  $('openStudentFile').onclick=()=>$('studentFileInput').click();
 $('studentFileInput').onchange=async e=>{try{loadStudentPuzzle(JSON.parse(await e.target.files[0].text()))}catch(err){alert('Ин файли супориши донишҷӯ нест ё вайрон шудааст.')}e.target.value=''};
 // Панели муаллим бо рамзи махфӣ муҳофизат мешавад.
