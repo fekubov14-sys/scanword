@@ -446,6 +446,24 @@ function finishTest(auto=false){if(!started||finished){if(!started)alert('Авв
 function renderResults(){let a=JSON.parse(localStorage.getItem('crosswordResultsTg')||'[]');$('resultsList').innerHTML=a.length?a.slice().reverse().map(x=>`<div class="result"><b>${escapeHtml(x.name)}</b> — ${x.score}% — дуруст: ${x.correct}, нодуруст: ${x.wrong??(x.total-x.correct)}, ҳамагӣ: ${x.total}<br><span class="hint">${escapeHtml(x.date)}</span></div>`).join(''):'Ҳоло натиҷа сабт нашудааст.'}
 function download(name,content,type){let blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function exportStudentFile(){if(!entries.length){alert('Аввал сканворд созед.');return}let design=JSON.parse(localStorage.getItem('skanvordDesignTg')||'null');let payload={format:'skanvord-student-v1',design:design||{...currentDesign(),backgroundImage:customBackgroundImage,blackCellImage,sectionImages},timeLimit:limitMinutes,questionDisplay:{questionDisplay,clueFontSize,clueTextColor},entries,placements:placements.map(p=>({idx:p.idx,r:p.r,c:p.c,dir:p.dir,num:p.num})),grid:Object.keys(cells).map(k=>{let[r,c]=k.split(',').map(Number);return{r,c,answer:cells[k].ch}})};download('suporishi_skanvord.json',JSON.stringify(payload),'application/json');setTimeout(()=>{if($('studentAppUrl').value.trim()){makeStudentQr();$('studentQrArea').scrollIntoView({behavior:'smooth',block:'center'});}else{alert('Файли донишҷӯ сохта шуд. Барои сохтани QR-код аввал суроғаи интернетии барномаро дар қисми «QR-код барои донишҷӯён» ворид кунед.');$('studentAppUrl').focus();$('studentAppUrl').scrollIntoView({behavior:'smooth',block:'center'});}},250)}
+async function openStudentTaskLink(rawUrl){
+ const target=new URL(rawUrl,location.href);
+ const file=target.searchParams.get('taskfile');
+ if(target.origin===location.origin&&target.pathname===location.pathname&&file){
+  if(!/^tasks\/[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
+  const fileUrl=new URL(file,target.href);
+  const response=await fetch(fileUrl.href,{cache:'no-store'});
+  if(!response.ok)throw Error('Файли супориш дар сервер ёфт нашуд.');
+  const data=await response.json();
+  if(!data||data.format!=='skanvord-student-v1'||!Array.isArray(data.entries)||!data.entries.length)throw Error('Файли супориш формати дуруст надорад.');
+  $('teacherScreen').classList.add('hidden');$('studentScreen').classList.remove('hidden');
+  $('designScreen').classList.add('hidden');$('teacherTab').classList.remove('active');$('studentTab').classList.add('active');$('designTab').classList.remove('active');
+  $('studentQrReader').style.display='none';$('stopStudentQr').hidden=true;$('scanStudentQr').disabled=false;
+  loadStudentPuzzle(data);
+  return;
+ }
+ location.assign(target.href);
+}
 function loadStudentPuzzle(data){
  if(data.questionDisplay){questionDisplay=data.questionDisplay.questionDisplay||'below';clueFontSize=data.questionDisplay.clueFontSize||'6';clueTextColor=data.questionDisplay.clueTextColor||'#ffffff';applyQuestionDisplay();}
  if(data.design){let d=data.design;blackCellImage=d.blackCellImage||'';customBackgroundImage=d.backgroundImage||'';sectionImages=d.sectionImages||{header:'',panel:'',board:''};applyDesign(d);}
@@ -554,7 +572,7 @@ let studentQrScanner=null;
       return;
      }
      if(!decodedText.startsWith('https://')&&!decodedText.startsWith('http://'))throw Error('QR-код пайванди интернетӣ ё қисми супориш нест.');
-     await studentQrScanner.stop();studentQrScanner.clear();studentQrScanner=null;location.href=decodedText;
+     await studentQrScanner.stop();studentQrScanner.clear();studentQrScanner=null;await openStudentTaskLink(decodedText);
     }catch(err){alert(err.message||'QR-код хонда нашуд.');}
    },()=>{});
   }catch(err){
@@ -575,7 +593,7 @@ let studentQrScanner=null;
    const reader=new Html5Qrcode('qrReader');
    const decoded=await reader.scanFile(file,true);
    if(!decoded.startsWith('https://')&&!decoded.startsWith('http://'))throw Error('Дар расми интихобшуда пайванди QR-коди супориш ёфт нашуд.');
-   location.href=decoded;
+   await openStudentTaskLink(decoded);
   }catch(err){alert('QR аз расм хонда нашуд: '+(err.message||err)+'. Расми равшантар интихоб кунед.');}
   finally{e.target.value='';}
  };
@@ -727,15 +745,9 @@ $('copyStudentUrl').addEventListener('click',()=>{if(!studentQrUrl){alert('Ав�
 $('openStudentQr').addEventListener('click',()=>{if(studentQrImageUrl)window.open(studentQrImageUrl,'_blank','noopener');});
 if(/^https?:$/.test(location.protocol))$('studentAppUrl').value=location.href.split('#')[0];
 (async function openHostedTaskFile(){
- const params=new URLSearchParams(location.search),file=params.get('taskfile');if(!file)return;
- try{
-  if(!file.startsWith('tasks/')||!file.endsWith('.json')||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
-  const response=await fetch(file);if(!response.ok)throw Error('Файли супориш дар сервер ёфт нашуд.');
-  const data=await response.json();
-  $('teacherScreen').classList.add('hidden');$('studentScreen').classList.remove('hidden');
-  $('designScreen').classList.add('hidden');$('teacherTab').classList.remove('active');$('studentTab').classList.add('active');$('designTab').classList.remove('active');
-  loadStudentPuzzle(data);
- }catch(e){alert(e.message||'Файли супориш кушода нашуд.');}
+ if(!new URLSearchParams(location.search).has('taskfile'))return;
+ try{await openStudentTaskLink(location.href);}
+ catch(e){alert(e.message||'Файли супориш кушода нашуд.');}
 })();
 (async function openTaskFromQr(){
  const match=location.hash.match(/^#task=(gz\.)?([A-Za-z0-9_-]+)$/);if(!match)return;
