@@ -645,13 +645,26 @@ let studentQrScanner=null;
   }
  };
  $('readQrImage').onclick=()=>$('qrImageInput').click();
+ async function ensureJsQrLibrary(){
+  if(window.jsQR)return;
+  await new Promise((resolve,reject)=>{
+   const existing=document.querySelector('script[data-jsqr-library]');
+   if(existing){if(window.jsQR){resolve();return;}existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',()=>reject(Error('Китобхонаи иловагии хондани QR бор нашуд.')),{once:true});return;}
+   const sc=document.createElement('script');
+   sc.src='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+   sc.dataset.jsqrLibrary='1';sc.onload=resolve;
+   sc.onerror=()=>reject(Error('Китобхонаи иловагии хондани QR бор нашуд. Интернетро санҷед.'));
+   document.head.appendChild(sc);
+  });
+  if(!window.jsQR)throw Error('Китобхонаи хондани QR оғоз нашуд.');
+ }
  $('qrImageInput').onchange=async e=>{
   const file=e.target.files&&e.target.files[0];if(!file)return;
   const box=$('studentQrReader');box.style.display='block';
   try{
    if(!file.type.startsWith('image/'))throw Error('Файли интихобшуда расм нест.');
    let decoded='';
-   // Аввал хонандаи дохилии Android/Chrome-ро истифода мебарем.
+   // Аввал хонандаи дохилии браузер.
    if('BarcodeDetector' in window){
     try{
      const detector=new BarcodeDetector({formats:['qr_code']});
@@ -660,14 +673,27 @@ let studentQrScanner=null;
      if(found&&found.length)decoded=found[0].rawValue||'';
     }catch(nativeError){decoded='';}
    }
-   // Агар хонандаи дохилӣ дастрас набошад ё QR-ро наёбад, китобхонаро истифода мебарем.
+   // Усули эҳтиётӣ: хондани мустақими пикселҳои расм бо jsQR.
+   if(!decoded){
+    await ensureJsQrLibrary();
+    const bitmap=await createImageBitmap(file);
+    const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const scale=Math.min(1,1800/Math.max(bitmap.width,bitmap.height));
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+    const pixels=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const result=jsQR(pixels.data,pixels.width,pixels.height,{inversionAttempts:'attemptBoth'});
+    if(result)decoded=result.data||'';
+   }
+   // Усули сеюм барои браузерҳое, ки ду усули боло кор накарданд.
    if(!decoded){
     if(!window.Html5Qrcode){
      await new Promise((resolve,reject)=>{
       const sc=document.createElement('script');
       sc.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
       sc.onload=resolve;
-      sc.onerror=()=>reject(Error('Китобхонаи хондани QR аз интернет бор нашуд. Интернетро санҷед.'));
+      sc.onerror=()=>reject(Error('Китобхонаи хондани QR аз интернет бор нашуд.'));
       document.head.appendChild(sc);
      });
     }
@@ -675,12 +701,12 @@ let studentQrScanner=null;
     try{decoded=await reader.scanFile(file,false);}
     finally{try{reader.clear();}catch(ignore){}}
    }
-   if(!decoded)throw Error('Дар расми интихобшуда QR-код ёфт нашуд. Расми равшан ва пурраи QR-ро интихоб кунед.');
+   if(!decoded)throw Error('QR-код дар расм ёфт нашуд. Расми худи QR-кодро пурра, равшан ва бе буридани канорҳо интихоб кунед.');
    if(!decoded.startsWith('https://')&&!decoded.startsWith('http://'))throw Error('Ин QR-код пайванди супориши сканворд нест.');
    await openStudentTaskLink(decoded);
   }catch(err){
    const message=err&&typeof err.message==='string'?err.message:(typeof err==='string'?err:'');
-   alert('QR аз расм хонда нашуд: '+(message||'QR-код дар расм ёфт нашуд. Расми равшантарро интихоб кунед.'));
+   alert('QR аз расм хонда нашуд: '+(message||'Расми QR-кодро дубора интихоб кунед.'));
   }finally{e.target.value='';}
  };
  $('stopStudentQr').onclick=async()=>{await stopQrCameraSafely();};
