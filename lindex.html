@@ -440,7 +440,14 @@ function finishTest(auto=false){if(!started||finished){if(!started)alert('Авв
  'Бо диққат ва машқи бештар ҳатман пешравӣ мекунӣ!',
  'Ба натиҷаи паст дилгир нашав: имкони беҳтар шудан ҳамеша ҳаст!'
  ];
- let awardHtml=score>=90?'<div class="award"><span class="cup">🏆</span><strong>ҶОМИ ТИЛЛОӢ</strong><span>Натиҷаи аъло!</span></div>':score>=75?'<div class="award silver"><span class="cup">🏆</span><strong>ҶОМИ НУҚРАГӢ</strong><span>Натиҷаи хеле хуб!</span></div>':score>=60?'<div class="award bronze"><span class="cup">🏆</span><strong>ҶОМИ БИРИНҶӢ</strong><span>Натиҷаи хуб!</span></div>':`<div class="award encourage"><span class="cup">💪</span><strong>Кӯшишро идома диҳед!</strong><span>${encouragements[(all.length-1)%encouragements.length]}</span></div>`;
+ let lastEncouragement=Number(localStorage.getItem('crosswordLastEncouragementTg'));
+ let encouragementIndex=Math.floor(Math.random()*encouragements.length);
+ if(encouragements.length>1&&encouragementIndex===lastEncouragement){
+  encouragementIndex=(encouragementIndex+1+Math.floor(Math.random()*(encouragements.length-1)))%encouragements.length;
+ }
+ localStorage.setItem('crosswordLastEncouragementTg',String(encouragementIndex));
+ const encouragementText=encouragements[encouragementIndex];
+ let awardHtml=score>=90?`<div class="award"><span class="cup">🏆</span><strong>ҶОМИ ТИЛЛОӢ</strong><span>Натиҷаи аъло!</span><p>${encouragementText}</p></div>`:score>=75?`<div class="award silver"><span class="cup">🏆</span><strong>ҶОМИ НУҚРАГӢ</strong><span>Натиҷаи хеле хуб!</span><p>${encouragementText}</p></div>`:score>=60?`<div class="award bronze"><span class="cup">🏆</span><strong>ҶОМИ БИРИНҶӢ</strong><span>Натиҷаи хуб!</span><p>${encouragementText}</p></div>`:`<div class="award encourage"><span class="cup">💪</span><strong>Кӯшишро идома диҳед!</strong><span>${encouragementText}</span></div>`;
  $('studentFeedback').innerHTML=(auto?'Вақт ба охир расид. ':'')+`<b>Натиҷаи санҷиш: ${score}%</b>${awardHtml}<div class="scoreBox"><div class="scoreItem good"><b>${correct}</b>Ҷавоби дуруст</div><div class="scoreItem bad"><b>${wrong}</b>Ҷавоби нодуруст</div><div class="scoreItem neutral"><b>${total}</b>Ҳамагӣ савол</div><div class="scoreItem"><b>${unanswered}</b>Бе ҷавоб</div></div>${wrongHtml}<p>Барои фиристодани натиҷа тугмаи «Сабти ҷавобҳои ман»-ро пахш кунед.</p>`;
  window.studentQuestionResults=questionResults;renderResults();renderStudent()}
 function renderResults(){let a=JSON.parse(localStorage.getItem('crosswordResultsTg')||'[]');$('resultsList').innerHTML=a.length?a.slice().reverse().map(x=>`<div class="result"><b>${escapeHtml(x.name)}</b> — ${x.score}% — дуруст: ${x.correct}, нодуруст: ${x.wrong??(x.total-x.correct)}, ҳамагӣ: ${x.total}<br><span class="hint">${escapeHtml(x.date)}</span></div>`).join(''):'Ҳоло натиҷа сабт нашудааст.'}
