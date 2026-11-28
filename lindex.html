@@ -585,17 +585,39 @@ let studentQrScanner=null;
   const file=e.target.files&&e.target.files[0];if(!file)return;
   const box=$('studentQrReader');box.style.display='block';
   try{
-   if(!window.Html5Qrcode){
-    await new Promise((resolve,reject)=>{
-     const sc=document.createElement('script');sc.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';sc.onload=resolve;sc.onerror=()=>reject(Error('Китобхонаи хондани QR аз интернет бор нашуд.'));document.head.appendChild(sc);
-    });
+   if(!file.type.startsWith('image/'))throw Error('Файли интихобшуда расм нест.');
+   let decoded='';
+   // Аввал хонандаи дохилии Android/Chrome-ро истифода мебарем.
+   if('BarcodeDetector' in window){
+    try{
+     const detector=new BarcodeDetector({formats:['qr_code']});
+     const bitmap=await createImageBitmap(file);
+     const found=await detector.detect(bitmap);bitmap.close();
+     if(found&&found.length)decoded=found[0].rawValue||'';
+    }catch(nativeError){decoded='';}
    }
-   const reader=new Html5Qrcode('qrReader');
-   const decoded=await reader.scanFile(file,true);
-   if(!decoded.startsWith('https://')&&!decoded.startsWith('http://'))throw Error('Дар расми интихобшуда пайванди QR-коди супориш ёфт нашуд.');
+   // Агар хонандаи дохилӣ дастрас набошад ё QR-ро наёбад, китобхонаро истифода мебарем.
+   if(!decoded){
+    if(!window.Html5Qrcode){
+     await new Promise((resolve,reject)=>{
+      const sc=document.createElement('script');
+      sc.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      sc.onload=resolve;
+      sc.onerror=()=>reject(Error('Китобхонаи хондани QR аз интернет бор нашуд. Интернетро санҷед.'));
+      document.head.appendChild(sc);
+     });
+    }
+    const reader=new Html5Qrcode('qrReader');
+    try{decoded=await reader.scanFile(file,false);}
+    finally{try{reader.clear();}catch(ignore){}}
+   }
+   if(!decoded)throw Error('Дар расми интихобшуда QR-код ёфт нашуд. Расми равшан ва пурраи QR-ро интихоб кунед.');
+   if(!decoded.startsWith('https://')&&!decoded.startsWith('http://'))throw Error('Ин QR-код пайванди супориши сканворд нест.');
    await openStudentTaskLink(decoded);
-  }catch(err){alert('QR аз расм хонда нашуд: '+(err.message||err)+'. Расми равшантар интихоб кунед.');}
-  finally{e.target.value='';}
+  }catch(err){
+   const message=err&&typeof err.message==='string'?err.message:(typeof err==='string'?err:'');
+   alert('QR аз расм хонда нашуд: '+(message||'QR-код дар расм ёфт нашуд. Расми равшантарро интихоб кунед.'));
+  }finally{e.target.value='';}
  };
  $('stopStudentQr').onclick=async()=>{
   if(studentQrScanner){try{await studentQrScanner.stop();studentQrScanner.clear()}catch(e){}studentQrScanner=null;}
