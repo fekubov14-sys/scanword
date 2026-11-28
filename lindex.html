@@ -115,6 +115,7 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 .fullClueModal.show{display:flex}.fullClueBox{width:min(560px,100%);max-height:80vh;overflow:auto;background:#fff;color:#17243a;border-radius:16px;padding:18px;box-shadow:0 18px 60px #0005}
 .fullClueHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.fullClueHead button{min-width:38px;padding:7px 10px}.fullClueImage{display:block;max-width:100%;max-height:48vh;object-fit:contain;margin:0 auto 14px;border-radius:10px;background:#f4f7fb}.fullClueImage.hidden{display:none}.fullClueText{font-size:18px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
 
+.entryEditor{display:grid;gap:10px;margin:10px 0}.entryRow{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.8);display:grid;gap:7px}.entryRowHead{font-weight:700;font-size:13px}.entryFields{display:grid;gap:7px}.entryFields label{display:grid;gap:4px;font-size:12px;color:var(--muted);font-weight:650}.entryRow .removeEntry{justify-self:end;padding:6px 10px;font-size:12px}.legacyWordInput{display:none!important}
 </style>
 <!-- Awards update 2026-11-28: six low-score awards and three cup tiers -->
 </head>
@@ -130,8 +131,10 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <section id="teacherScreen" class="layout hidden">
 <aside class="panel" id="teacherSide">
 <h2>Сохтани сканворд</h2>
-<p class="hint">Ҳар сатр: ҶАВОБ | Савол (ҷудокунакро бо фосилаҳои ду тараф нависед). Дар ҷавоб ҳарф, рақам ва аломатҳои махсус (масалан: 12В, 220/380В, AC-DC, +, −, %, Ω) истифода бурдан мумкин аст. Фосилаҳо ба ҳисоб гирифта намешаванд. Аломати | низ дар дохили ҷавоб ё савол истифода мешавад, агар ҷудокунаки байни онҳо шакли « | » дошта бошад.</p>
-<textarea id="wordInput" spellcheck="false">БАРҚ | Шакли энергия, ки дар шабака истифода мешавад
+<p class="hint">Барои ҳар савол ду майдони алоҳида пур кунед: матни савол ва ҷавоби дуруст. Ҷавоб дар шабакаи сканворд ҷойгир мешавад; савол дар рӯйхати саволҳо намоиш дода мешавад.</p>
+<div id="entryEditor" class="entryEditor"></div>
+<div class="actions"><button type="button" class="secondary" id="addEntry">＋ Иловаи савол</button></div>
+<textarea id="wordInput" class="legacyWordInput" spellcheck="false">БАРҚ | Шакли энергия, ки дар шабака истифода мешавад
 ҶАРАЁН | Ҳаракати зарядҳои электрикӣ
 ШИДДАТ | Фарқи потенсиалҳои электрикӣ
 ҚУВВА | Андозаи таъсири ҷисм ба ҷисм
@@ -272,6 +275,32 @@ function splitEntryLine(line){
  if(spaced){const i=spaced.index;return [text.slice(0,i),text.slice(i+spaced[0].length)];}
  const i=text.indexOf('|');
  return i>=0?[text.slice(0,i),text.slice(i+1)]:[text,''];
+}
+function renderEntryEditorFromText(){
+ const host=$('entryEditor');if(!host)return;
+ const lines=$('wordInput').value.split(/\n/).filter(x=>x.trim());
+ host.replaceChildren();
+ lines.forEach((line,index)=>{const parts=splitEntryLine(line);addEntryEditorRow(parts[0]||'',parts[1]||'',index+1)});
+}
+function addEntryEditorRow(answer,clue,number){
+ const host=$('entryEditor');if(!host)return;
+ const row=document.createElement('div');row.className='entryRow';
+ const head=document.createElement('div');head.className='entryRowHead';head.textContent='Саволи '+(number||host.children.length+1);
+ const fields=document.createElement('div');fields.className='entryFields';
+ const al=document.createElement('label');al.textContent='Ҷавоби дуруст';
+ const ai=document.createElement('input');ai.type='text';ai.placeholder='Масалан: ГЕНЕРАТОР';ai.value=answer||'';ai.autocomplete='off';
+ const cl=document.createElement('label');cl.textContent='Савол ё шарҳ';
+ const ci=document.createElement('input');ci.type='text';ci.placeholder='Матни саволро ворид кунед';ci.value=clue||'';ci.autocomplete='off';
+ al.append(ai);cl.append(ci);fields.append(al,cl);
+ const rm=document.createElement('button');rm.type='button';rm.className='secondary removeEntry';rm.textContent='Нест кардани ин савол';
+ rm.onclick=()=>{row.remove();renumberEntryEditor();syncEntryEditorToText();renderImageFields()};
+ ai.addEventListener('input',syncEntryEditorToText);ci.addEventListener('input',syncEntryEditorToText);
+ row.append(head,fields,rm);host.append(row);
+}
+function renumberEntryEditor(){document.querySelectorAll('#entryEditor .entryRowHead').forEach((el,i)=>el.textContent='Саволи '+(i+1))}
+function syncEntryEditorToText(){
+ const rows=[...document.querySelectorAll('#entryEditor .entryRow')];
+ $('wordInput').value=rows.map(row=>{const a=row.querySelectorAll('input');return (a[0].value||'').trim()+' | '+(a[1].value||'').trim()}).join('\n');
 }
 function parse(){return $('wordInput').value.split(/\n/).map((x,index)=>({line:x.trim(),index})).filter(x=>x.line).map(({line,index})=>{let [answer,clue]=splitEntryLine(line);return{word:clean(answer),clue:clue.trim()||'Шарҳи калима ворид нашудааст',image:entryImages[index]||''}}).filter(x=>x.word.length>=2)}
 function renderImageFields(){
@@ -496,9 +525,10 @@ function loadStudentPuzzle(data){
  renderStudent();updateProgress();
 }
 $('buildImageFields').onclick=renderImageFields;
+$('addEntry').onclick=()=>{addEntryEditorRow('','');renumberEntryEditor();syncEntryEditorToText()};
  $('generate').onclick=()=>{try{let e=parseCurrent();makePuzzle({entries:e,timeLimit:$('timeLimit').value})}catch(e){alert(e.message)}};
-$('sample').onclick=()=>{entryImages={};$('wordInput').value='БАРҚ | Шакли энергия\\nҶАРАЁН | Ҳаракати зарядҳои электрикӣ\\nШИДДАТ | Фарқи потенсиалҳо\\nҚУВВА | Таъсири ҷисм ба ҷисм\\nГЕНЕРАТОР | Табдилдиҳандаи энергияи механикӣ\\nТРАНСФОРМАТОР | Таҷҳизот барои тағйири шиддат\\nАККУМУЛЯТОР | Манбаи ҷараёни химиявӣ';renderImageFields()};
-$('clearInput').onclick=()=>{$('wordInput').value='';entryImages={};renderImageFields()};
+$('sample').onclick=()=>{entryImages={};$('wordInput').value='БАРҚ | Шакли энергия\\nҶАРАЁН | Ҳаракати зарядҳои электрикӣ\\nШИДДАТ | Фарқи потенсиалҳо\\nҚУВВА | Таъсири ҷисм ба ҷисм\\nГЕНЕРАТОР | Табдилдиҳандаи энергияи механикӣ\\nТРАНСФОРМАТОР | Таҷҳизот барои тағйири шиддат\\nАККУМУЛЯТОР | Манбаи ҷараёни химиявӣ';renderEntryEditorFromText();renderImageFields()};
+$('clearInput').onclick=()=>{$('wordInput').value='';entryImages={};renderEntryEditorFromText();renderImageFields()};
 $('saveStudentFile').onclick=exportStudentFile;
 $('saveTeacherProject').onclick=()=>{
  const e=parseCurrent();
@@ -514,6 +544,7 @@ function loadIntoTeacher(data){
   if(x.image)entryImages[i]=x.image;
   return clean(x.word)+' | '+normalizeQuestionText(x.clue||'').replace(/\n/g,' ');
  }).join('\n');
+ renderEntryEditorFromText();
  $('timeLimit').value=Number(data.timeLimit??10);
  renderImageFields();
  makePuzzle({entries:parseCurrent(),timeLimit:$('timeLimit').value});
@@ -532,6 +563,7 @@ $('fileInput').onchange=async e=>{
    const area=doc.querySelector('#wordInput');
    if(!area)throw Error('Дар ин HTML майдони саволҳо ёфт нашуд. Файли барномаи сканвордро интихоб кунед.');
    $('wordInput').value=normalizeQuestionText(area.value||area.textContent||'');
+   renderEntryEditorFromText();
    const oldLimit=doc.querySelector('#timeLimit');
    if(oldLimit)$('timeLimit').value=oldLimit.value||oldLimit.getAttribute('value')||10;
    entryImages={};
@@ -700,7 +732,7 @@ document.addEventListener('keydown',e=>{
  else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){move(-1);e.preventDefault()}
 });
 function move(step){if(!started||finished||!selected)return;const p=activePlacement();if(!p)return;const len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,i=(selected.r-p.r)*dr+(selected.c-p.c)*dc,j=i+step;if(j<0||j>=len)return;const r=p.r+dr*j,c=p.c+dc*j;if(get(r,c)){selected={r,c};updateStudentActiveCell()}}
-renderResults();renderImageFields();try{makePuzzle({entries:parse(),timeLimit:10})}catch(e){}
+renderResults();renderEntryEditorFromText();renderImageFields();try{makePuzzle({entries:parse(),timeLimit:10})}catch(e){}
 
 // Идоракунии намуди зоҳирӣ аз ҷониби корбар
 const designDefaults={bg:'#eaf1fb',panel:'#ffffff',head1:'#10264d',head2:'#6854c8',board:'#e8eef8',black:'#263b5b',accent:'#315fe8'};
