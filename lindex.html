@@ -167,8 +167,8 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 <label class="hint" for="studentAppUrl">Суроғаи барнома (URL)</label>
 <input id="studentAppUrl" type="url" placeholder="https://username.github.io/scanword/lindex.html">
 <label class="hint" for="studentTaskFile">Роҳи файли супориши боршуда дар GitHub</label>
-<input id="studentTaskFile" type="text" value="tasks/M7.json" placeholder="tasks/M7.json">
-<p class="hint">Аввал файли донишҷӯро сабт карда, ба ҷузвдони tasks дар GitHub бор кунед. Баъд номи ҳамон файлро дар ин ҷо нависед. QR-код танҳо пайванди кӯтоҳро нигоҳ медорад, на тамоми маълумоти сканвордро.</p>
+<input id="studentTaskFile" type="text" value="M7.json" placeholder="M7.json ё tasks/M7.json">
+<p class="hint">Файли донишҷӯ метавонад дар ҷузвдони асосӣ ё дар ҷузвдони tasks-и GitHub бошад. Номи роҳро дар ин ҷо нависед. QR-код танҳо пайванди кӯтоҳро нигоҳ медорад, на тамоми маълумоти сканвордро.</p>
 <div class="actions">
 <button type="button" id="makeStudentQr">Сохтани QR-код</button>
 <button type="button" class="secondary" id="copyStudentUrl">Нусхабардории пайванд</button>
@@ -848,7 +848,7 @@ async function makeStudentQr(){
  else if(page.pathname.endsWith('/index.html'))page.pathname=page.pathname.slice(0,-'index.html'.length)+'lindex.html';
  const file=$('studentTaskFile').value.trim();
  if(!/^tasks\/[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..')){
-  alert('Роҳи файл нодуруст аст. Намуна: tasks/M7.json');$('studentTaskFile').focus();return;
+  alert('Роҳи файл нодуруст аст. Намуна: M7.json ё tasks/M7.json');$('studentTaskFile').focus();return;
  }
  const area=$('studentQrArea');area.textContent='Файли супориш санҷида мешавад…';
  studentQrUrl='';studentQrImageUrl='';$('openStudentQr').disabled=true;
