@@ -495,13 +495,17 @@ function exportStudentFile(){if(!entries.length){alert('Аввал сканво�
 async function openStudentTaskLink(rawUrl){
  const target=new URL(rawUrl,location.href);
  const file=target.searchParams.get('taskfile');
- if(target.origin===location.origin&&target.pathname===location.pathname&&file){
+ // QR метавонад аз камераи дохилӣ ё камераи телефони дигар кушода шавад.
+ // Барои кушодани супориш танҳо мавҷудияти taskfile муҳим аст, на баробарии pathname.
+ if(file){
   if(!/^tasks\/[A-Za-z0-9_-]+\.json$/.test(file)||file.includes('..'))throw Error('Пайванди файли супориш нодуруст аст.');
   const fileUrl=new URL(file,target.href);
-  const response=await fetch(fileUrl.href,{cache:'no-store'});
-  if(!response.ok)throw Error('Файли супориш дар сервер ёфт нашуд.');
-  const data=await response.json();
-  if(!data||data.format!=='skanvord-student-v1'||!Array.isArray(data.entries)||!data.entries.length)throw Error('Файли супориш формати дуруст надорад.');
+  let response;
+  try{response=await fetch(fileUrl.href,{cache:'no-store'});}
+  catch(fetchError){throw Error('Ба файли супориш пайваст нашуд. Интернет ва дастрасии GitHub Pages-ро санҷед.');}
+  if(!response.ok)throw Error('Файли супориш ёфт нашуд: '+file+'. Санҷед, ки он дар ҷузвдони tasks-и GitHub бор шудааст.');
+  let data;try{data=await response.json();}catch(parseError){throw Error('Файли супориш JSON-и дуруст нест. Файлро аз нав бор кунед.');}
+  if(!data||data.format!=='skanvord-student-v1'||!Array.isArray(data.entries)||!data.entries.length)throw Error('Файли супориш формати дуруст надорад ё холӣ аст.');
   $('teacherScreen').classList.add('hidden');$('studentScreen').classList.remove('hidden');
   $('designScreen').classList.add('hidden');$('teacherTab').classList.remove('active');$('studentTab').classList.add('active');$('designTab').classList.remove('active');
   $('studentQrReader').style.display='none';$('stopStudentQr').hidden=true;$('scanStudentQr').disabled=false;
@@ -595,10 +599,11 @@ let studentQrScanner=null;
   $('stopStudentQr').hidden=true;
   $('scanStudentQr').disabled=false;
  }
+ let qrLinkOpening=false;
  $('scanStudentQr').onclick=async()=>{
   const box=$('studentQrReader'),stop=$('stopStudentQr'),btn=$('scanStudentQr');
   box.style.display='block';stop.hidden=false;btn.disabled=true;
-  let qrLinkOpening=false;
+  qrLinkOpening=false;
   try{
    if(!window.Html5Qrcode){
     await new Promise((resolve,reject)=>{
@@ -636,8 +641,18 @@ let studentQrScanner=null;
      if(qrLinkOpening)return;
      qrLinkOpening=true;
      await stopQrCameraSafely();
-     await openStudentTaskLink(decodedText);
-    }catch(err){alert(err.message||'QR-код хонда нашуд.');}
+     try{
+      await openStudentTaskLink(decodedText);
+     }catch(openError){
+      qrLinkOpening=false;
+      $('scanStudentQr').disabled=false;$('stopStudentQr').hidden=true;
+      box.style.display='block';
+      alert(openError.message||'Супориш кушода нашуд. QR-кодро бори дигар скан кунед.');
+     }
+    }catch(err){
+     qrLinkOpening=false;
+     alert(err.message||'QR-код хонда нашуд.');
+    }
    },()=>{});
   }catch(err){
    box.style.display='block';box.insertAdjacentHTML('beforeend','<p style="color:#b42318">Камера кушода нашуд: '+String(err.message||err).replace(/[<>]/g,'')+'. Иҷозати камераро диҳед ва саҳифаро бо браузери муосир (Chrome, Safari, Firefox ё Edge) кушоед. Барои камера HTTPS лозим аст.</p>');
