@@ -255,7 +255,7 @@ textarea:focus,input:focus,select:focus{outline:2px solid rgba(49,95,232,.18);bo
 const $=id=>document.getElementById(id), alphabet=[...'АБВГҒДЕЁЖЗӢИЙКҚЛМНОПРСТУӮФХҲЧҶШЪЭЮЯ'];
 const nativeLetterInput=$('nativeLetterInput');
 function focusNativeLetterInput(){if(!started||finished||!selected)return;positionNativeLetterInput();if(document.activeElement===nativeLetterInput)nativeLetterInput.blur();try{nativeLetterInput.focus({preventScroll:true})}catch(e){nativeLetterInput.focus()}}
-let entryImages={},entries=[],cells={},placements=[],selected=null,direction='across',numbers={},checked=false,started=false,finished=false,timerId=null,secondsLeft=600,limitMinutes=10;
+let entryImages={},entries=[],cells={},placements=[],selected=null,direction='across',activeWordIdx=null,numbers={},checked=false,started=false,finished=false,timerId=null,secondsLeft=600,limitMinutes=10;
 // Ҳарфҳо, рақамҳо ва аломатҳои махсус нигоҳ дошта мешаванд; танҳо фосилаҳо хориҷ мешаванд.
 const clean=s=>String(s??'').toLocaleUpperCase('tg').replace(/\s+/gu,'');
 const normalizeQuestionText=s=>String(s||'').replace(/\\r?\\n/g,'\n').replace(/\r\n?/g,'\n');
@@ -341,7 +341,7 @@ function makePuzzle(data){
  for(let k in cells){let[r,c]=k.split(',').map(Number);shifted[key(r-minR,c-minC)]=cells[k]}
  placements=placements.map(p=>({...p,r:p.r-minR,c:p.c-minC}));cells=shifted;
  placements.sort((a,b)=>a.r-b.r||a.c-b.c);let n=0;for(let p of placements){let k=key(p.r,p.c);if(!numbers[k])numbers[k]=++n;p.num=numbers[k]}
- placements.sort((a,b)=>a.num-b.num);selected=placements.length?{r:placements[0].r,c:placements[0].c}:null;direction=placements[0]?.dir||'across';
+ placements.sort((a,b)=>a.num-b.num);selected=placements.length?{r:placements[0].r,c:placements[0].c}:null;direction=placements[0]?.dir||'across';activeWordIdx=placements[0]?.idx??null;
  limitMinutes=Math.max(0,Number(data.timeLimit)||0);secondsLeft=limitMinutes*60;started=false;finished=false;stopTimer();$('timer').textContent=formatTime(secondsLeft);
  $('buildStatus').textContent=`Ҷойгир шуд: ${placements.length} аз ${entries.length} калима.`+(failed.length?' Ҷой нагирифт: '+failed.join(', '):' Ҳама ҷойгир шуданд.');
  renderTeacher();renderStudent();renderAnswerKey();updateProgress();
@@ -396,15 +396,15 @@ function buildGrid(target,mode){
 }
 function renderImageSheet(target){let host=$(target);host.innerHTML='';let imageEntries=placements.filter(p=>entries[p.idx]&&entries[p.idx].image).sort((a,b)=>a.num-b.num);let seen=new Set();imageEntries.forEach(p=>{if(seen.has(p.idx))return;seen.add(p.idx);let e=entries[p.idx],card=document.createElement('div');card.className='imageCard';let img=document.createElement('img');img.src=e.image;img.alt='Расми таҷҳизот барои саволи '+p.num;let caption=document.createElement('div');caption.className='imageQuestion';caption.innerHTML='<span class="imageNumber">'+p.num+'.</span>'+escapeHtml(e.clue);card.append(img,caption);host.append(card)})}
 function renderClues(target,interactive){let groups={across:[],down:[]};placements.forEach(p=>groups[p.dir].push(p));$(target).innerHTML='';
- for(let dir of ['across','down']){let g=document.createElement('div');g.className='clueGroup';let h=document.createElement('h3');h.textContent=dir==='across'?'→ Уфуқӣ':'↓ Амудӣ';g.append(h);groups[dir].sort((a,b)=>a.num-b.num).forEach(p=>{let d=document.createElement('div');d.className='clue'+(interactive&&selected&&p.dir===direction&&p.r===selected.r&&p.c===selected.c?' selected':'');d.innerHTML=`<small>${p.num}.</small> <span class="clueText">${escapeHtml(entries[p.idx].clue)}</span>`;if(interactive)d.onclick=()=>{if(!started||finished)return;direction=p.dir;selected={r:p.r,c:p.c};renderStudent();focusNativeLetterInput()};g.append(d)});$(target).append(g)}}
+ for(let dir of ['across','down']){let g=document.createElement('div');g.className='clueGroup';let h=document.createElement('h3');h.textContent=dir==='across'?'→ Уфуқӣ':'↓ Амудӣ';g.append(h);groups[dir].sort((a,b)=>a.num-b.num).forEach(p=>{let d=document.createElement('div');d.className='clue'+(interactive&&selected&&p.dir===direction&&p.r===selected.r&&p.c===selected.c?' selected':'');d.innerHTML=`<small>${p.num}.</small> <span class="clueText">${escapeHtml(entries[p.idx].clue)}</span>`;if(interactive)d.onclick=()=>{if(!started||finished)return;direction=p.dir;activeWordIdx=p.idx;selected={r:p.r,c:p.c};renderStudent();focusNativeLetterInput()};g.append(d)});$(target).append(g)}}
 function renderTeacher(){buildGrid('teacherBoard','teacher');renderImageSheet('teacherImageSheet');renderClues('teacherClues',false);let holes=placements.length?bounds().rows*bounds().cols-Object.keys(cells).length:0;$('teacherClues').style.display=questionDisplay==='inside'&&holes>=placements.length?'none':''}
 function keepActiveCellInView(){const wrap=$('studentBoard');if(!wrap||!selected)return;const cell=wrap.querySelector(`.cell[data-r="${selected.r}"][data-c="${selected.c}"]`);if(!cell)return;const wr=wrap.getBoundingClientRect(),cr=cell.getBoundingClientRect(),pad=22;let dy=0,dx=0;if(cr.bottom>wr.bottom-pad)dy=cr.bottom-(wr.bottom-pad);else if(cr.top<wr.top+pad)dy=cr.top-(wr.top+pad);if(cr.right>wr.right-pad)dx=cr.right-(wr.right-pad);else if(cr.left<wr.left+pad)dx=cr.left-(wr.left+pad);if(dy)wrap.scrollTop+=dy;if(dx)wrap.scrollLeft+=dx;try{cell.scrollIntoView({block:'nearest',inline:'nearest',behavior:'smooth'})}catch(e){cell.scrollIntoView(false)}}
 function renderStudent(){const pageX=window.scrollX,pageY=window.scrollY,wrap=$('studentBoard'),wrapTop=wrap?.scrollTop||0,wrapLeft=wrap?.scrollLeft||0;buildGrid('studentBoard','student');renderImageSheet('studentImageSheet');renderClues('studentClues',true);let holes=placements.length?bounds().rows*bounds().cols-Object.keys(cells).length:0;$('studentClues').style.display=questionDisplay==='inside'&&holes>=placements.length?'none':'';if(wrap){wrap.scrollTop=wrapTop;wrap.scrollLeft=wrapLeft}if(window.scrollX!==pageX||window.scrollY!==pageY)window.scrollTo({left:pageX,top:pageY,behavior:'instant'});keepActiveCellInView()}
 function renderAnswerKey(){$('answerKey').innerHTML=entries.map((e,i)=>`<div><b>${i+1}. ${escapeHtml(e.word)}</b> — ${escapeHtml(e.clue)}</div>`).join('')}
 function placementContains(p,r,c){const len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0;return r>=p.r&&c>=p.c&&r<p.r+dr*len+(dr?0:1)&&c<p.c+dc*len+(dc?0:1)}
-function selectCell(r,c){let d=get(r,c);if(!d)return;const candidates=placements.filter(p=>d.words.includes(p.idx)&&placementContains(p,r,c));if(selected&&selected.r===r&&selected.c===c){const other=direction==='across'?'down':'across';if(candidates.some(p=>p.dir===other))direction=other}else{selected={r,c};if(!candidates.some(p=>p.dir===direction)&&candidates.length)direction=candidates[0].dir}renderStudent()}
-function activePlacement(){if(!selected)return null;return placements.find(p=>p.dir===direction&&placementContains(p,selected.r,selected.c))||null}
-function typeLetter(ch){if(!started||finished||!selected||!get(selected.r,selected.c))return;const writtenKey=key(selected.r,selected.c);get(selected.r,selected.c).value=ch;if(studentLetterNodes[writtenKey])studentLetterNodes[writtenKey].textContent=ch;let p=activePlacement();if(!p){const options=placements.filter(x=>placementContains(x,selected.r,selected.c));p=options[0]||null;if(p)direction=p.dir}if(p){let len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,i=(selected.r-p.r)*dr+(selected.c-p.c)*dc;for(let j=i+1;j<len;j++){let r=p.r+dr*j,c=p.c+dc*j;if(get(r,c)){selected={r,c};break}}}updateStudentActiveCell();updateProgress()}
+function selectCell(r,c){const d=get(r,c);if(!d)return;const candidates=placements.filter(p=>d.words.includes(p.idx)&&placementContains(p,r,c));if(!candidates.length)return;let chosen=null;if(selected&&selected.r===r&&selected.c===c){const other=direction==='across'?'down':'across';chosen=candidates.find(p=>p.dir===other)||candidates.find(p=>p.idx!==activeWordIdx)||candidates[0]}else{chosen=candidates.find(p=>p.idx===activeWordIdx)||candidates.find(p=>p.dir===direction)||candidates[0]}selected={r,c};direction=chosen.dir;activeWordIdx=chosen.idx;renderStudent()}
+function activePlacement(){if(!selected)return null;return placements.find(p=>p.idx===activeWordIdx&&placementContains(p,selected.r,selected.c))||placements.find(p=>p.dir===direction&&placementContains(p,selected.r,selected.c))||null}
+function typeLetter(ch){if(!started||finished||!selected||!get(selected.r,selected.c))return;const p=activePlacement();if(!p)return;const writtenKey=key(selected.r,selected.c);get(selected.r,selected.c).value=ch;if(studentLetterNodes[writtenKey])studentLetterNodes[writtenKey].textContent=ch;const len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,i=(selected.r-p.r)*dr+(selected.c-p.c)*dc;for(let j=i+1;j<len;j++){const r=p.r+dr*j,c=p.c+dc*j;if(get(r,c)){selected={r,c};break}}direction=p.dir;activeWordIdx=p.idx;updateStudentActiveCell();updateProgress()}
 function erase(){if(!started||finished||!selected)return;const erasedKey=key(selected.r,selected.c);get(selected.r,selected.c).value='';if(studentLetterNodes[erasedKey])studentLetterNodes[erasedKey].textContent='';updateStudentActiveCell();updateProgress()}
 function makeKeyboard(){let k=$('keyboard');k.innerHTML='';alphabet.forEach(ch=>{let b=document.createElement('button');b.textContent=ch;b.onclick=()=>typeLetter(ch);k.append(b)});let d=document.createElement('button');d.textContent='⌫';d.className='erase';d.onclick=erase;k.append(d)}
 function updateProgress(){let a=Object.values(cells),filled=a.filter(x=>x.value).length;$('filled').textContent=filled;$('total').textContent=a.length;$('progress').textContent=(a.length?Math.round(filled/a.length*100):0)+'%'}
@@ -449,31 +449,13 @@ function exportStudentFile(){if(!entries.length){alert('Аввал сканво�
 function loadStudentPuzzle(data){
  if(data.questionDisplay){questionDisplay=data.questionDisplay.questionDisplay||'below';clueFontSize=data.questionDisplay.clueFontSize||'6';clueTextColor=data.questionDisplay.clueTextColor||'#ffffff';applyQuestionDisplay();}
  if(data.design){let d=data.design;blackCellImage=d.blackCellImage||'';customBackgroundImage=d.backgroundImage||'';sectionImages=d.sectionImages||{header:'',panel:'',board:''};applyDesign(d);}
- if(data.format!=='skanvord-student-v1'||!Array.isArray(data.entries)||!Array.isArray(data.placements)||!Array.isArray(data.grid))throw Error('Файли супориш нодуруст аст');
- entries=data.entries.map(x=>({word:clean(x.word),clue:String(x.clue||''),image:x.image||''}));
- placements=data.placements.map(p=>({...p}));
- // Ҳангоми ҳар бор кушодани файли донишҷӯ тартиби рақамҳои саволҳо тасодуфӣ мешавад;
- // ҷойгиршавии худи калимаҳо дар шабака тағйир намеёбад.
- for(let i=placements.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[placements[i],placements[j]]=[placements[j],placements[i]];}
- placements.forEach((p,i)=>{p.num=i+1});
- cells={};numbers={};
- data.grid.forEach(x=>{cells[key(x.r,x.c)]={ch:clean(x.answer)[0]||'',value:'',words:[]}});
- placements.forEach(p=>{
-  let dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0;
-  if(!entries[p.idx])throw Error('Маълумоти калима дар файл нодуруст аст');
-  for(let i=0;i<entries[p.idx].word.length;i++){
-   let cell=get(p.r+dr*i,p.c+dc*i);
-   if(!cell)throw Error('Ҷойгиршавии ҳуҷайраҳо дар файл нодуруст аст');
-   cell.words.push(p.idx);
-  }
-  numbers[key(p.r,p.c)]=p.num;
- });
- selected=placements.length?{r:placements[0].r,c:placements[0].c}:null;
- direction=placements[0]?.dir||'across';
- limitMinutes=Math.max(0,Number(data.timeLimit)||0);secondsLeft=limitMinutes*60;
- started=false;finished=false;checked=false;stopTimer();
- $('timer').textContent=formatTime(secondsLeft);
- $('studentStatus').textContent='Супориш кушода шуд. Ҳангоми ҷавоб ҳарф, рақам ва аломатҳоро ворид кунед.';
+ if(data.format!=='skanvord-student-v1'||!Array.isArray(data.entries)||!data.entries.length)throw Error('Файли супориш нодуруст аст');
+ const freshEntries=data.entries.map(x=>({word:clean(x.word),clue:String(x.clue||''),image:x.image||''}));
+ // Ҳар кушодани файли донишҷӯ шабакаро аз нав месозад:
+ // ҷойи калимаҳо, самт ва рақами саволҳо аз кушодани пешина фарқ карда метавонанд.
+ makePuzzle({entries:freshEntries,timeLimit:Number(data.timeLimit)||0});
+ started=false;finished=false;checked=false;
+ $('studentStatus').textContent='Супориш кушода шуд. Ҷойгиршавии саволҳо барои ин кушодан нав карда шуд.';
  $('studentFeedback').textContent='Ному насабро ворид карда, санҷишро оғоз кунед.';
  $('startTest').disabled=false;$('finishTest').disabled=false;
  renderStudent();updateProgress();
@@ -648,7 +630,7 @@ document.addEventListener('keydown',e=>{
  else if(e.key==='ArrowRight'||e.key==='ArrowDown'){move(1);e.preventDefault()}
  else if(e.key==='ArrowLeft'||e.key==='ArrowUp'){move(-1);e.preventDefault()}
 });
-function move(step){if(!started||finished||!selected)return;let r=selected.r+(direction==='down'?step:0),c=selected.c+(direction==='across'?step:0);if(get(r,c)){selected={r,c};renderStudent()}}
+function move(step){if(!started||finished||!selected)return;const p=activePlacement();if(!p)return;const len=entries[p.idx].word.length,dr=p.dir==='down'?1:0,dc=p.dir==='across'?1:0,i=(selected.r-p.r)*dr+(selected.c-p.c)*dc,j=i+step;if(j<0||j>=len)return;const r=p.r+dr*j,c=p.c+dc*j;if(get(r,c)){selected={r,c};updateStudentActiveCell()}}
 renderResults();renderImageFields();try{makePuzzle({entries:parse(),timeLimit:10})}catch(e){}
 
 // Идоракунии намуди зоҳирӣ аз ҷониби корбар
